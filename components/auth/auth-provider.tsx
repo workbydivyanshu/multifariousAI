@@ -1,7 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useContext } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import React, { useState, useContext } from 'react'
 
 interface AuthContextType {
   user: any
@@ -16,53 +15,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      setLoading(false)
-      return
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      setLoading(false)
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          setUser(session?.user ?? null)
-          setLoading(false)
-        }
-      )
-
-      return () => subscription.unsubscribe()
-    }
-
-    checkUser()
-  }, [])
+  useState(() => {
+    setLoading(false)
+  })
 
   const signIn = async () => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) return
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    await supabase.auth.signInWithOAuth({ provider: 'google' })
   }
 
   const signOut = async () => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) return
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    await supabase.auth.signOut()
+    setUser(null)
   }
 
   return (
