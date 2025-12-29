@@ -1,4 +1,4 @@
-import { AiModel } from './types'
+import { AiModel } from '@/types'
 
 // Cloud-based Free AI Providers
 export const MODEL_CATALOG: AiModel[] = [
