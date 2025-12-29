@@ -53,7 +53,9 @@ export function ChatMessages({ messages, selectedModels }: ChatMessagesProps) {
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <span>{model?.label || assistant.model}</span>
                     </div>
-                    <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown components={{
+                      p: ({ children }) => <p className="prose prose-sm dark:prose-invert max-w-none">{children}</p>
+                    }}>
                       {assistant.content}
                     </ReactMarkdown>
                   </div>
