@@ -10,46 +10,40 @@ interface ChatMessagesProps {
   selectedModels: string[]
 }
 
+interface MessageGroup {
+  user: Message
+  assistants: Message[]
+}
+
 export function ChatMessages({ messages, selectedModels }: ChatMessagesProps) {
-  const groupedMessages = messages.reduce((acc, msg) => {
+  const groupedMessages: MessageGroup[] = []
+
+  messages.forEach((msg) => {
     if (msg.role === 'user') {
-      acc.user = msg
+      groupedMessages.push({
+        user: msg,
+        assistants: [],
+      })
     } else if (msg.role === 'assistant' && msg.model) {
-      if (!acc.assistants) acc.assistants = {}
-      acc.assistants[msg.model] = msg
+      const lastGroup = groupedMessages[groupedMessages.length - 1]
+      if (lastGroup) {
+        lastGroup.assistants.push(msg)
+      }
     }
-    return acc
-  }, {} as { user?: Message; assistants?: Record<string, Message> })
+  })
 
   return (
     <div className="space-y-6">
-      {Object.entries(
-        messages
-          .filter((msg) => msg.role === 'user')
-          .reduce((acc, userMsg) => {
-            const timestamp = userMsg.timestamp
-            const assistants = messages.filter(
-              (msg) =>
-                msg.role === 'assistant' &&
-                msg.timestamp > timestamp &&
-                msg.timestamp < (acc[timestamp]?.nextTimestamp || Infinity)
-            )
-            acc[timestamp] = {
-              user: userMsg,
-              assistants,
-            }
-            return acc
-          }, {} as Record<number, { user: Message; assistants: Message[] }>)
-      ).map(([timestamp, { user, assistants }]) => (
-        <div key={timestamp} className="space-y-4">
-            <div className="flex justify-end">
+      {groupedMessages.map((group, index) => (
+        <div key={`group-${index}`} className="space-y-4">
+          <div className="flex justify-end">
             <div className="max-w-2xl rounded-lg bg-primary px-4 py-2 text-primary-foreground">
-              <ReactMarkdown>{user.content}</ReactMarkdown>
+              <ReactMarkdown>{group.user.content}</ReactMarkdown>
             </div>
           </div>
-          {assistants.length > 0 && (
+          {group.assistants.length > 0 && (
             <div className={cn('grid gap-4', selectedModels.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
-              {assistants.map((assistant) => {
+              {group.assistants.map((assistant) => {
                 const model = getModelById(assistant.model!)
                 return (
                   <div
