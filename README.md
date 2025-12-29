@@ -41,7 +41,7 @@
 
 ## 🚀 Quick Start
 
-### Option 1: Web Application
+### Option 1: Web Application (Recommended)
 
 #### Prerequisites
 - Node.js 20+ 
@@ -74,34 +74,75 @@ npm run dev
 
 That's it! Start chatting with free models immediately!
 
-### Option 2: Local Models (Ollama)
+### Option 2: Docker Desktop
 
-1. **Install Ollama**
-   - **macOS**: `brew install ollama`
-   - **Linux**: `curl -fsSL https://ollama.ai/install.sh | sh`
-   - **Windows**: Download from [ollama.ai](https://ollama.ai)
+**Note**: Docker Desktop needs to be running for Docker commands to work.
 
-2. **Pull some models**
+#### Build and Run with Docker Compose
+
+1. **Ensure Docker Desktop is running**
+2. **Build image** (Optional - docker-compose handles this)
 ```bash
-ollama pull llama3.3
-ollama pull mistral
-ollama pull qwen2.5
+docker-compose build
 ```
 
-3. **Start Ollama**
+3. **Run container**
 ```bash
-ollama serve
+docker-compose up --build
 ```
 
-4. **Import in MultifariousAI**
-   - Click the ⚙️ Settings button
-   - Enter your Ollama URL (default: `http://localhost:11434`)
-   - Click "Import Ollama Models"
-
-### Option 3: Desktop Application (Coming Soon)
-
+4. **Access the app**
 ```bash
-# Coming soon - Electron/Tauri wrapper for offline use
+http://localhost:3000
+```
+
+#### Troubleshooting Docker Issues
+
+**If Docker daemon is not responding:**
+1. **Restart Docker Desktop** - Stop and start Docker Desktop
+2. **Check Docker Engine** - Run `docker info` in terminal
+3. **Clear cache** - Run `docker system prune -f` to clear build cache
+4. **Try direct Docker build**:
+```bash
+docker build -t multifariousai .
+```
+
+**Alternative: Use WSL2 or Git Bash**
+
+If you have WSL2 installed:
+```bash
+# In WSL2 terminal
+cd multifariousAI
+docker-compose up --build
+```
+
+### Option 3: Alternative: Vercel (Recommended for Production)
+
+#### Deploy to Vercel
+
+1. **Push to GitHub** (already done!)
+2. **Go to [vercel.com](https://vercel.com)**
+3. **Import project** - Connect GitHub repository
+4. **Add environment variables** (if needed)
+5. **Deploy**
+
+### Option 4: Local Development (No Docker)
+
+#### Without Docker
+
+1. **Install dependencies**
+```bash
+npm install
+```
+
+2. **Build for production**
+```bash
+npm run build
+```
+
+3. **Run production server**
+```bash
+npm run start
 ```
 
 ---
