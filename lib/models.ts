@@ -217,12 +217,12 @@ export function getModelsByProvider(provider: string): AiModel[] {
   return MODEL_CATALOG.filter(m => m.provider === provider)
 }
 
-// Search models
+  // Search models
 export function searchModels(query: string): AiModel[] {
   const lowerQuery = query.toLowerCase()
   return MODEL_CATALOG.filter(m =>
     m.label.toLowerCase().includes(lowerQuery) ||
-    m.description.toLowerCase().includes(lowerQuery)
+    (m.description && m.description.toLowerCase().includes(lowerQuery))
   )
 }
 
