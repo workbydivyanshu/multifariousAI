@@ -52,9 +52,11 @@ export interface ChatSettings {
   presencePenalty?: number
 }
 
-export const CONSTANTS = {
+ export const CONSTANTS = {
   MAX_MODELS: 5,
   FREE_MESSAGE_LIMIT: 50,
-  RESET_TIME: 24 * 60 * 60 * 1000, // 1 day
+  RESET_TIME: 24 * 60 * 60 * 1000, //1 day
   MAX_OUTPUT_TOKENS: 10000,
 }
+
+export const MAX_MODELS = 5

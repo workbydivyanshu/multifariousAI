@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server'
-import { OpenAIStream, StreamingTextResponse } from 'ai'
 
 export const runtime = 'edge'
 export const dynamic = 'force-dynamic'
@@ -47,9 +46,61 @@ export async function POST(req: Request) {
       )
     }
 
-    const stream = OpenAIStream(response)
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
 
-    return new StreamingTextResponse(stream)
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body?.getReader()
+        if (!reader) {
+          controller.close()
+          return
+        }
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value, { stream: true })
+            const lines = chunk.split('\n')
+
+            for (const line of lines) {
+              if (!line.trim() || line === 'data: [DONE]') continue
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6))
+                  if (data.choices?.[0]?.delta?.content) {
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify({ content: data.choices[0].delta.content })}\n\n`)
+                    )
+                  }
+                  if (data.choices?.[0]?.finish_reason) {
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+                    controller.close()
+                    return
+                  }
+                } catch {
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[OpenRouter] Stream error:', error)
+          controller.error(error)
+        } finally {
+          reader.releaseLock()
+        }
+      },
+    })
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   } catch (error) {
     console.error('[OpenRouter] Error:', error)
     return Response.json(

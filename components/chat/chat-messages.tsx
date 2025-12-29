@@ -1,8 +1,8 @@
 'use client'
 
-import { Message } from '@/types/chat'
+import { Message } from '@/types'
 import { getModelById } from '@/lib/models'
-import { ReactMarkdown } from 'react-markdown'
+import ReactMarkdown from 'react-markdown'
 import { cn } from '@/lib/utils'
 
 interface ChatMessagesProps {
@@ -42,7 +42,7 @@ export function ChatMessages({ messages, selectedModels }: ChatMessagesProps) {
           }, {} as Record<number, { user: Message; assistants: Message[] }>)
       ).map(([timestamp, { user, assistants }]) => (
         <div key={timestamp} className="space-y-4">
-          <div className="flex justify-end">
+            <div className="flex justify-end">
             <div className="max-w-2xl rounded-lg bg-primary px-4 py-2 text-primary-foreground">
               <ReactMarkdown>{user.content}</ReactMarkdown>
             </div>
@@ -57,7 +57,7 @@ export function ChatMessages({ messages, selectedModels }: ChatMessagesProps) {
                     className="rounded-lg border bg-muted/50 p-4"
                   >
                     <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                      <span>{model?.name || assistant.model}</span>
+                      <span>{model?.label || assistant.model}</span>
                     </div>
                     <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">
                       {assistant.content}
