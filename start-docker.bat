@@ -1,126 +1,133 @@
 @echo off
 setlocal enabledelayedexpansion
-setlocal dp=%USERPROFILE%
 
 :: MultifariousAI Docker Start Script
-:: Version 1.0 - Production Ready
+:: Version 1.1 - Enhanced with better directory handling
 
 echo ==========================================
 echo     MULTIFARIOUS AI DOCKER STARTUP
 echo ==========================================
 echo.
 
+:: Save current directory
+set "CURRENT_DIR=%CD%"
+
 :: Check if Docker Desktop is running
+echo.
+echo [INFO] Checking Docker Desktop...
 docker info >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Docker Desktop is not running or not accessible
+    echo [WARNING] Docker Desktop not found or not running
     echo.
     echo Please start Docker Desktop and try again
     echo.
-    pause
-    exit /b 1
+    echo This script will continue attempting to start services...
+    echo.
+    timeout /t 30
+    goto :continue
 )
 
-echo [SUCCESS] Docker Desktop detected
+echo [SUCCESS] Docker Desktop is running!
 echo.
 
-:: Navigate to project directory
-cd /d "%dp%\Documents\GitHub\multifariousAI" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to navigate to project directory
-    echo.
-    pause
-    exit /b 1
+:: Navigate to project directory - try multiple methods
+echo [INFO] Current directory: %CURRENT_DIR%
+echo [INFO] Target directory: C:\Users\shaolinOP\Documents\GitHub\multifariousAI
+
+:: Method 1: Try direct path
+cd /d "C:\Users\shaolinOP\Documents\GitHub\multifariousAI" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [SUCCESS] Navigated to project directory
+    goto :found_dir
+) else (
+    echo [INFO] Direct navigation failed, trying USERPROFILE method...
 )
 
-:: Set environment variables from .env or create from example
-if exist .env (
-    echo Using existing .env file
-    set /p "OPENROUTER_API_KEY="
-    set /p "GEMINI_API_KEY="
-    set /p "OLLAMA_URL="
-    for /f "tokens=1-2 delims=" %%a in (.env)" do (
-        if "%%a" == "OPENROUTER_API_KEY" (
-            set "OPENROUTER_API_KEY=%%b"
-        ) else if "%%a" == "GEMINI_API_KEY" (
-            set "GEMINI_API_KEY=%%b"
-        ) else if "%%a" == "OLLAMA_URL" (
-            set "OLLAMA_URL=%%b"
-        )
-    )
-    echo Environment loaded from .env
+:: Method 2: Try USERPROFILE
+cd /d "%USERPROFILE%\Documents\GitHub\multifariousAI" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [SUCCESS] Navigated to project directory via USERPROFILE
+    goto :found_dir
 ) else (
-    echo Creating .env from .env.example...
-    copy .env.example .env >nul 2>&1
+    echo [WARNING] Could not navigate to project directory
+    echo [INFO] Current directory: %CD%
+    echo [INFO] Please navigate manually to: C:\Users\shaolinOP\Documents\GitHub\multifariousAI
     echo.
-    echo Please edit .env file with your API keys:
-    echo   - OPENROUTER_API_KEY (for OpenRouter models)
-    echo   - GEMINI_API_KEY (for Gemini models)
-    echo   - OLLAMA_URL (for local Ollama models)
+    set "NAVIGATE_MANUALLY=true"
+)
+
+:found_dir
+
+:: Check if .env file exists
+if exist .env (
+    echo [INFO] Using existing .env file
+) else (
+    echo [INFO] Creating .env from example...
+    copy .env.example .env
+    echo [INFO] Please edit .env file with your API keys if needed
     echo.
-    set "OPENROUTER_API_KEY="
-    set "GEMINI_API_KEY="
-    set "OLLAMA_URL=http://localhost:11434"
 )
 
 :: Stop any existing containers gracefully
-echo Stopping existing containers...
-docker-compose down --remove-orphans --timeout 30 >nul 2>&1
+echo.
+echo [INFO] Stopping any existing containers...
+docker-compose down --remove-orphans --timeout 10 >nul 2>&1
 
 :: Build Docker image
-echo Building MultifariousAI Docker image...
+echo.
+echo [INFO] Building Docker image...
 docker-compose build >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Docker build failed
-    echo.
-    echo Check docker-compose.yml and Dockerfile
+    echo [INFO] Please check docker-compose.yml and Dockerfile
     pause
     exit /b 1
+    goto :end
 )
 
 :: Start containers in detached mode
-echo Starting MultifariousAI containers...
-docker-compose up -d >nul 2>&1
+echo.
+echo [INFO] Starting Docker containers...
+docker-compose up --build -d >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to start containers
-    echo.
-    echo Check Docker Desktop is running
+    echo [INFO] Checking Docker Desktop status...
+    docker info >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo [ERROR] Docker Desktop is not responding
+        echo [INFO] Please restart Docker Desktop
+    )
     pause
     exit /b 1
+    goto :end
 )
 
 :: Wait for services to be ready
-echo Waiting for services to start...
-timeout /t 30 /nobreak >nul set /a=0
-:loop_start
+echo.
+echo [INFO] Waiting for services to be ready...
 set /a=0
-timeout /t 2 cmd /c docker-compose ps --filter "status=running" >nul 2>&1
-docker-compose ps >nul 2>&1
-echo %%a
-findstr /i "app" /i "Up" >nul
-if errorlevel 1 (
-    if %%a leq 0 (
-        echo Services not ready, waiting... (%%a/5)
-        set /a=%%a+1
-        timeout /t 2 cmd /c echo Checking services... %%a/5 >nul
-        goto :loop_start
-    ) else (
-        echo Services are ready!
-        goto :services_ready
+:wait_ready
+timeout /t 60 /nobreak >nul 2>&1
+echo Checking service status... /a
+set /a
+docker-compose ps --filter "status=running" --format "table {{.Name}}\t{{.Status}}" >nul 2>&1
+for /f %%i in (%output) do (
+    if "%%i" == "app" (
+        if "%%j" == "Up" (
+            echo [SUCCESS] Services are ready! (%%a/60 seconds)
+            set /a=%%a
+            goto :ready
+        )
     )
-) else (
-    echo Error checking services
-    set /a=99
 )
-if %a leq 99 (
-    timeout /t 1 cmd /c echo ERROR: Services failed to start >nul
-    pause
-    exit /b 1
+echo /a seconds passed...
+if %a% lss 60 (
+    echo [WARNING] Services taking longer than expected
+    echo [INFO] Continuing wait...
+    goto :wait_ready
 )
-timeout /t 2 >nul
-goto :loop_start
 
-:services_ready
+:ready
 echo.
 echo ==========================================
 echo MULTIFARIOUS AI IS NOW RUNNING!
@@ -128,14 +135,21 @@ echo ==========================================
 echo.
 echo Application URL: http://localhost:3000
 echo.
-echo Quick Commands:
+echo Commands:
 echo   - View logs: docker-compose logs -f app
-echo   - Stop services: docker-compose down
-echo   - Check status: docker-compose ps
+echo   - Stop: docker-compose down
+echo   - Status: docker-compose ps
 echo.
 echo Press Ctrl+C to stop containers
 echo.
 
-:: Keep script running to show logs
+:: Continuous logging
 :keep_running
-docker-compose logs -f
+echo.
+docker-compose logs -f app
+goto :keep_running
+
+:end
+echo.
+echo Press any key to exit...
+pause >nul
