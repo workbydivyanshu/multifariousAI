@@ -469,6 +469,8 @@ export const MODEL_CATALOG: AiModel[] = [
   },
 
   // === PERPLEXITY AI (Web Search & Research) ===
+  // Note: sonar-reasoning and sonar-reasoning-pro are deprecated
+  // Using only currently supported models
   {
     id: 'perplexity-sonar',
     label: 'Perplexity Sonar',
@@ -492,39 +494,13 @@ export const MODEL_CATALOG: AiModel[] = [
     supportsWebSearch: true,
   },
   {
-    id: 'perplexity-sonar-reasoning',
-    label: 'Perplexity Sonar Reasoning',
-    provider: 'perplexity',
-    model: 'sonar-reasoning',
-    free: false,
-    category: 'text',
-    description: 'Web search with chain-of-thought reasoning',
-    context: 127072,
-    supportsWebSearch: true,
-    supportsResearch: true,
-    supportsReasoning: true,
-  },
-  {
-    id: 'perplexity-sonar-reasoning-pro',
-    label: 'Perplexity Sonar Reasoning Pro',
-    provider: 'perplexity',
-    model: 'sonar-reasoning-pro',
-    free: false,
-    category: 'text',
-    description: 'Deep research with extended thinking',
-    context: 127072,
-    supportsWebSearch: true,
-    supportsResearch: true,
-    supportsReasoning: true,
-  },
-  {
     id: 'perplexity-sonar-deep-research',
     label: 'Perplexity Deep Research',
     provider: 'perplexity',
     model: 'sonar-deep-research',
     free: false,
     category: 'text',
-    description: 'Comprehensive multi-step research',
+    description: 'Comprehensive multi-step research with citations',
     context: 127072,
     supportsWebSearch: true,
     supportsResearch: true,

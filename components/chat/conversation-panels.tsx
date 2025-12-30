@@ -391,6 +391,7 @@ interface ResponseContentProps {
 
 function ResponseContent({ response, expanded, onRetry }: ResponseContentProps) {
   const [copied, setCopied] = useState(false)
+  const [thinkingExpanded, setThinkingExpanded] = useState(false)
 
   const handleCopy = async () => {
     if (response?.content) {
@@ -474,20 +475,37 @@ function ResponseContent({ response, expanded, onRetry }: ResponseContentProps) 
   if (response?.content) {
     // Parse thinking/reasoning content if present
     // Common patterns: <think>...</think>, <thinking>...</thinking>, [thinking]...[/thinking]
-    const thinkingMatch = response.content.match(/<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/i) ||
-                          response.content.match(/\[think(?:ing)?\]([\s\S]*?)\[\/think(?:ing)?\]/i)
+    // Also handles reasoning tags and multiple thinking blocks
+    const thinkingPatterns = [
+      /<think>((?:.|\n)*?)<\/think>/gi,
+      /<thinking>((?:.|\n)*?)<\/thinking>/gi,
+      /\[think\]((?:.|\n)*?)\[\/think\]/gi,
+      /\[thinking\]((?:.|\n)*?)\[\/thinking\]/gi,
+      /<reasoning>((?:.|\n)*?)<\/reasoning>/gi,
+    ]
     
-    const thinkingContent = thinkingMatch ? thinkingMatch[1].trim() : null
-    const mainContent = thinkingMatch 
-      ? response.content.replace(thinkingMatch[0], '').trim() 
-      : response.content
+    let thinkingContent = ''
+    let mainContent = response.content
     
-    const [thinkingExpanded, setThinkingExpanded] = useState(false)
+    // Extract all thinking blocks
+    for (const pattern of thinkingPatterns) {
+      const matches = response.content.matchAll(pattern)
+      for (const match of matches) {
+        if (match[1]) {
+          thinkingContent += (thinkingContent ? '\n\n' : '') + match[1].trim()
+        }
+        mainContent = mainContent.replace(match[0], '')
+      }
+    }
+    
+    // Clean up the main content (remove extra whitespace/newlines at start)
+    mainContent = mainContent.replace(/^[\s\n]+/, '').trim()
+    const finalThinkingContent = thinkingContent.trim() || null
 
     return (
       <div className="space-y-2 flex flex-col h-full">
         {/* Thinking/Reasoning Box */}
-        {thinkingContent && (
+        {finalThinkingContent && (
           <div className="rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-orange-500/5">
             <button
               onClick={() => setThinkingExpanded(!thinkingExpanded)}
@@ -496,7 +514,7 @@ function ResponseContent({ response, expanded, onRetry }: ResponseContentProps) 
               <Brain className="w-4 h-4 text-amber-500" />
               <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Thinking Process</span>
               <span className="text-[10px] text-muted-foreground ml-auto">
-                {thinkingContent.length} chars
+                {finalThinkingContent.length} chars
               </span>
               {thinkingExpanded ? (
                 <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -507,7 +525,7 @@ function ResponseContent({ response, expanded, onRetry }: ResponseContentProps) 
             {thinkingExpanded && (
               <div className="px-3 pb-3 border-t border-amber-500/20">
                 <div className="text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-words mt-2 max-h-48 overflow-y-auto">
-                  {thinkingContent}
+                  {finalThinkingContent}
                 </div>
               </div>
             )}

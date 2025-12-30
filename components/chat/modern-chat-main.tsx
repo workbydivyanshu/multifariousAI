@@ -131,6 +131,21 @@ export function ModernChatMain() {
 
   const enabledSlides = getEnabledSlides()
   const apiSlides = enabledSlides.filter(s => s.type === 'api')
+  
+  // Check if any API keys are configured
+  const hasAnyApiKey = mounted && (
+    providerKeys.openrouter ||
+    providerKeys.openai ||
+    providerKeys.anthropic ||
+    providerKeys.gemini ||
+    providerKeys.mistral ||
+    providerKeys.groq ||
+    providerKeys.together ||
+    providerKeys.perplexity ||
+    providerKeys.ollamaUrl
+  )
+  
+  const modelCount = mounted ? apiSlides.length : 0
 
   // Auto-scroll and show/hide scroll button
   useEffect(() => {
@@ -248,8 +263,43 @@ export function ModernChatMain() {
       })
 
       try {
+        // Build conversation history from previous queries in this session
+        // Include up to 10 previous message pairs for context (20 messages total)
+        const previousQueries = activeSessionId 
+          ? getQueriesForSession(activeSessionId)
+            .filter(q => q.id !== queryId) // Exclude current query
+            .sort((a, b) => a.timestamp - b.timestamp) // Oldest first
+            .slice(-10) // Last 10 queries
+          : []
+        
+        // Build messages array with conversation history
+        const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = []
+        
+        for (const prevQuery of previousQueries) {
+          // Add user message
+          conversationMessages.push({ role: 'user', content: prevQuery.userMessage })
+          
+          // Find the best response for this model/slide
+          // Prefer the same slide, or use the first non-error response
+          const slideResponse = prevQuery.responses[slide.id]
+          if (slideResponse?.content && !slideResponse.error) {
+            conversationMessages.push({ role: 'assistant', content: slideResponse.content })
+          } else {
+            // Use first successful response from any model
+            const successfulResponse = Object.values(prevQuery.responses).find(
+              r => r.content && !r.error && !r.isStreaming
+            )
+            if (successfulResponse) {
+              conversationMessages.push({ role: 'assistant', content: successfulResponse.content })
+            }
+          }
+        }
+        
+        // Add the current message
+        conversationMessages.push({ role: 'user', content })
+
         const requestBody: any = {
-          messages: [{ role: 'user', content }],
+          messages: conversationMessages,
           model: model.model,
           provider: model.provider,
         }
@@ -350,17 +400,36 @@ export function ModernChatMain() {
       } catch (error: any) {
         // Handle timeout/abort errors specially
         let userMessage: string
+        let isDeprecationError = false
+        
         if (error?.name === 'AbortError') {
           userMessage = 'Request timed out after 2 minutes. The model may be overloaded.'
         } else {
           const apiError = parseApiError(error)
           userMessage = getUserFriendlyMessage(apiError)
           logError(`Chat error for slide ${slide.name}`, apiError)
+          
+          // Check if this is a deprecation error - disable immediately
+          const errorLower = userMessage.toLowerCase()
+          isDeprecationError = errorLower.includes('deprecated') || 
+                               errorLower.includes('decommission') ||
+                               errorLower.includes('no longer available') ||
+                               errorLower.includes('model not found') ||
+                               errorLower.includes('invalid model')
         }
         
         // Record the error to track problematic models
+        // For deprecation errors, record multiple times to immediately disable
         if (slide.modelId) {
-          recordModelError(slide.modelId, userMessage)
+          if (isDeprecationError) {
+            // Force immediate disable by recording 3 errors
+            recordModelError(slide.modelId, userMessage)
+            recordModelError(slide.modelId, userMessage)
+            recordModelError(slide.modelId, userMessage)
+            console.log(`[Auto-disable] Model ${slide.modelId} disabled due to deprecation error`)
+          } else {
+            recordModelError(slide.modelId, userMessage)
+          }
         }
         
         addResponse(queryId, {
@@ -420,8 +489,6 @@ export function ModernChatMain() {
       setConsensusLoading(null)
     }
   }
-
-  const modelCount = mounted ? apiSlides.length : 0
   
   // Check if any enabled model has web search or research capabilities
   const hasWebSearchModel = apiSlides.some(slide => {
@@ -519,6 +586,32 @@ export function ModernChatMain() {
             <ThemeToggle />
           </div>
         </header>
+
+        {/* Quick Setup Banner - shows when no API keys are configured */}
+        {mounted && !hasAnyApiKey && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-6 mt-4 p-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-center gap-4"
+          >
+            <div className="flex-1 text-center sm:text-left">
+              <p className="font-semibold text-primary">🚀 Get Started in 30 Seconds</p>
+              <p className="text-sm text-muted-foreground">
+                Add your API key to unlock 50+ AI models. OpenRouter offers free credits to get started!
+              </p>
+            </div>
+            <Button 
+              onClick={() => {
+                const settingsBtn = document.querySelector('[data-api-settings]') as HTMLButtonElement
+                settingsBtn?.click()
+              }}
+              className="gap-2 bg-gradient-to-r from-primary to-purple-600"
+            >
+              <Settings2 className="w-4 h-4" />
+              Add API Key
+            </Button>
+          </motion.div>
+        )}
 
         {/* Messages Area */}
         <div 
