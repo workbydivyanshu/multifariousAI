@@ -140,7 +140,7 @@ export function ModernChatInput({
                   <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   <span>{modelCount}</span>
                 </motion.div>
-              )}}
+              )}
               
               {/* Web Search Toggle */}
               {showWebSearchToggle && (
