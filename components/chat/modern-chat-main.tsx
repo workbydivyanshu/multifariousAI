@@ -30,7 +30,8 @@ import { cn } from '@/lib/utils'
 import { 
   saveQueryToLocal, 
   updateResponseInLocal, 
-  getLocalChatHistory 
+  getLocalChatHistory,
+  getQueriesForSession 
 } from '@/lib/local-storage'
 import {
   getActiveSessionId,
@@ -97,40 +98,20 @@ export function ModernChatMain() {
     }
   }, [mounted])
 
-  // Load queries from persisted responses on mount
+  // Load queries from persisted responses on mount - filter by active session
   useEffect(() => {
-    if (mounted) {
-      // Reconstruct queries from stored responses
-      const storedResponses = responses
-      const queryIds = Object.keys(storedResponses)
+    if (mounted && activeSessionId) {
+      // Load queries for the active session
+      const sessionQueries = getQueriesForSession(activeSessionId)
+      const loadedQueries: QueryGroup[] = sessionQueries.map(q => ({
+        id: q.id,
+        userMessage: q.userMessage,
+        timestamp: q.timestamp,
+      })).sort((a, b) => a.timestamp - b.timestamp)
       
-      if (queryIds.length > 0) {
-        // Load from localStorage to get user messages
-        try {
-          const history = getLocalChatHistory()
-          const loadedQueries: QueryGroup[] = []
-          
-          // Only load queries that have responses stored
-          for (const queryId of queryIds) {
-            const localQuery = history.queries.find(q => q.id === queryId)
-            if (localQuery) {
-              loadedQueries.push({
-                id: localQuery.id,
-                userMessage: localQuery.userMessage,
-                timestamp: localQuery.timestamp,
-              })
-            }
-          }
-          
-          // Sort by timestamp (oldest first)
-          loadedQueries.sort((a, b) => a.timestamp - b.timestamp)
-          setQueries(loadedQueries)
-        } catch (error) {
-          console.error('Failed to load queries from localStorage:', error)
-        }
-      }
+      setQueries(loadedQueries)
     }
-  }, [mounted, responses])
+  }, [mounted, activeSessionId])
 
   // Auto-add all models when API keys are configured
   useEffect(() => {
@@ -143,6 +124,7 @@ export function ModernChatMain() {
       if (providerKeys.mistral) addAllModelsForProvider('mistral')
       if (providerKeys.groq) addAllModelsForProvider('groq')
       if (providerKeys.together) addAllModelsForProvider('together')
+      if (providerKeys.perplexity) addAllModelsForProvider('perplexity')
       if (providerKeys.ollamaUrl) addAllModelsForProvider('ollama')
     }
   }, [mounted, providerKeys, addAllModelsForProvider])
@@ -192,12 +174,13 @@ export function ModernChatMain() {
     setQuerying(true)
 
     try {
-      // Save to localStorage
+      // Save to localStorage with sessionId
       try {
         saveQueryToLocal({
           id: queryId,
           userMessage: content,
           timestamp: Date.now(),
+          sessionId: activeSessionId || undefined,
           responses: {}
         })
       } catch (error) {
@@ -227,6 +210,7 @@ export function ModernChatMain() {
           mistral: providerKeys.mistral,
           groq: providerKeys.groq,
           together: providerKeys.together,
+          perplexity: providerKeys.perplexity,
           ollama: providerKeys.ollamaUrl || 'http://localhost:11434'
         }
         return keyMap[provider]
@@ -243,7 +227,8 @@ export function ModernChatMain() {
           gemini: 'Gemini',
           mistral: 'Mistral',
           groq: 'Groq',
-          together: 'Together AI'
+          together: 'Together AI',
+          perplexity: 'Perplexity AI'
         }
         const providerName = providerNames[model.provider] || model.provider
         addResponse(queryId, {
@@ -308,7 +293,8 @@ export function ModernChatMain() {
               gemini: 'Gemini',
               mistral: 'Mistral',
               groq: 'Groq',
-              together: 'Together AI'
+              together: 'Together AI',
+              perplexity: 'Perplexity AI'
             }
             const providerName = providerNames[model.provider] || model.provider
             errorMessage = `${providerName} API key required. Add your key in settings.`
@@ -436,12 +422,32 @@ export function ModernChatMain() {
   }
 
   const modelCount = mounted ? apiSlides.length : 0
+  
+  // Check if any enabled model has web search or research capabilities
+  const hasWebSearchModel = apiSlides.some(slide => {
+    const model = getModelById(slide.modelId || '')
+    return model?.supportsWebSearch
+  })
+  
+  const hasResearchModel = apiSlides.some(slide => {
+    const model = getModelById(slide.modelId || '')
+    return model?.supportsResearch
+  })
 
   const handleSessionChange = (sessionId: string) => {
     setActiveSessionIdState(sessionId)
     setActiveSession(sessionId)
-    // In a full implementation, you would load the session's queries here
-    // For now, queries remain in the current component state
+    
+    // Load queries for this session
+    const sessionQueries = getQueriesForSession(sessionId)
+    const loadedQueries: QueryGroup[] = sessionQueries.map(q => ({
+      id: q.id,
+      userMessage: q.userMessage,
+      timestamp: q.timestamp,
+    })).sort((a, b) => a.timestamp - b.timestamp)
+    
+    setQueries(loadedQueries)
+    setConsensusResponses({})
   }
 
   const handleNewSession = (session: ChatSession) => {
@@ -641,6 +647,8 @@ export function ModernChatMain() {
                   : `Ask ${modelCount} AI${modelCount > 1 ? 's' : ''} anything...`
               }
               onOpenSettings={() => setShowModelSelector(true)}
+              showWebSearchToggle={hasWebSearchModel}
+              showResearchToggle={hasResearchModel}
             />
           </div>
 

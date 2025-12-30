@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 interface ChatRequest {
   messages: Array<{ role: string; content: string }>
   model: string
-  provider: 'openrouter' | 'openai' | 'anthropic' | 'gemini' | 'mistral' | 'groq' | 'together' | 'ollama'
+  provider: 'openrouter' | 'openai' | 'anthropic' | 'gemini' | 'mistral' | 'groq' | 'together' | 'ollama' | 'perplexity'
   apiKey?: string
   baseUrl?: string
 }
@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
         break
       case 'ollama':
         response = await handleOllama(messages, model, baseUrl)
+        break
+      case 'perplexity':
+        response = await handlePerplexity(messages, model, apiKey)
         break
       default:
         return Response.json(
@@ -548,4 +551,58 @@ function createAnthropicStreamResponse(response: Response) {
       'Connection': 'keep-alive',
     },
   })
+}
+
+async function handlePerplexity(
+  messages: Array<{ role: string; content: string }>,
+  model: string,
+  apiKey?: string
+) {
+  const key = apiKey || process.env.PERPLEXITY_API_KEY
+
+  if (!key) {
+    return Response.json(
+      { error: 'Perplexity API key is required. Add it in Settings → API Keys → Perplexity AI' },
+      { status: 401 }
+    )
+  }
+
+  const requestBody: any = {
+    model,
+    messages: messages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    })),
+    stream: true,
+  }
+
+  // Add search options for research-capable models
+  if (model.includes('deep-research')) {
+    requestBody.search_recency_filter = 'month'
+  }
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!response.ok) {
+    let errorMessage = 'Perplexity API error'
+    try {
+      const error = await response.json()
+      errorMessage = error.error?.message || error.detail || errorMessage
+    } catch {
+      // If we can't parse the error, use the default message
+    }
+    return Response.json(
+      { error: errorMessage },
+      { status: response.status }
+    )
+  }
+
+  return createStreamResponse(response)
 }

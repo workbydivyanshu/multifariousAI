@@ -461,6 +461,66 @@ export const MODEL_CATALOG: AiModel[] = [
     description: 'Specialized for coding',
     context: 32000,
   },
+
+  // === PERPLEXITY AI (Web Search & Research) ===
+  {
+    id: 'perplexity-sonar',
+    label: 'Perplexity Sonar',
+    provider: 'perplexity',
+    model: 'sonar',
+    free: false,
+    category: 'text',
+    description: 'Fast web search with real-time information',
+    context: 127072,
+    supportsWebSearch: true,
+  },
+  {
+    id: 'perplexity-sonar-pro',
+    label: 'Perplexity Sonar Pro',
+    provider: 'perplexity',
+    model: 'sonar-pro',
+    free: false,
+    category: 'text',
+    description: 'Advanced web search with deeper analysis',
+    context: 200000,
+    supportsWebSearch: true,
+  },
+  {
+    id: 'perplexity-sonar-reasoning',
+    label: 'Perplexity Sonar Reasoning',
+    provider: 'perplexity',
+    model: 'sonar-reasoning',
+    free: false,
+    category: 'text',
+    description: 'Web search with chain-of-thought reasoning',
+    context: 127072,
+    supportsWebSearch: true,
+    supportsResearch: true,
+  },
+  {
+    id: 'perplexity-sonar-reasoning-pro',
+    label: 'Perplexity Sonar Reasoning Pro',
+    provider: 'perplexity',
+    model: 'sonar-reasoning-pro',
+    free: false,
+    category: 'text',
+    description: 'Deep research with extended thinking',
+    context: 127072,
+    supportsWebSearch: true,
+    supportsResearch: true,
+  },
+  {
+    id: 'perplexity-sonar-deep-research',
+    label: 'Perplexity Deep Research',
+    provider: 'perplexity',
+    model: 'sonar-deep-research',
+    free: false,
+    category: 'text',
+    description: 'Comprehensive multi-step research',
+    context: 127072,
+    supportsWebSearch: true,
+    supportsResearch: true,
+  },
 ]
 
 // Get models by category
@@ -491,4 +551,14 @@ export function searchModels(query: string): AiModel[] {
 // Get model by ID
 export function getModelById(id: string): AiModel | undefined {
   return MODEL_CATALOG.find(m => m.id === id)
+}
+
+// Get models with web search capability
+export function getWebSearchModels(): AiModel[] {
+  return MODEL_CATALOG.filter(m => m.supportsWebSearch)
+}
+
+// Get models with research capability
+export function getResearchModels(): AiModel[] {
+  return MODEL_CATALOG.filter(m => m.supportsResearch)
 }

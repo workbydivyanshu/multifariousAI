@@ -13,6 +13,7 @@ export interface LocalQuery {
   id: string
   userMessage: string
   timestamp: number
+  sessionId?: string // Added for multi-session support
   responses: Record<string, { content: string; isStreaming: boolean; error?: string }>
 }
 
@@ -94,6 +95,26 @@ export function clearLocalChatHistory(): void {
     localStorage.removeItem(STORAGE_KEY)
   } catch (error) {
     console.error('Failed to clear chat history:', error)
+  }
+}
+
+// Get queries for a specific session
+export function getQueriesForSession(sessionId: string): LocalQuery[] {
+  const history = getLocalChatHistory()
+  return history.queries.filter(q => q.sessionId === sessionId)
+}
+
+// Clear queries for a specific session
+export function clearSessionQueries(sessionId: string): void {
+  if (typeof window === 'undefined') return
+  
+  try {
+    const history = getLocalChatHistory()
+    history.queries = history.queries.filter(q => q.sessionId !== sessionId)
+    history.lastUpdated = Date.now()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history))
+  } catch (error) {
+    console.error('Failed to clear session queries:', error)
   }
 }
 

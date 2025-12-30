@@ -8,6 +8,8 @@ export interface AiModel {
   description?: string
   context?: number
   custom?: boolean
+  supportsWebSearch?: boolean
+  supportsResearch?: boolean
 }
 
 export interface Provider {

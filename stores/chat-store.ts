@@ -11,6 +11,8 @@ interface ChatState {
   currentThreadId: string | null
   selectedModels: string[]
   isStreaming: boolean
+  webSearchEnabled: boolean
+  researchEnabled: boolean
   settings: {
     temperature: number
     maxTokens: number
@@ -25,6 +27,7 @@ interface ChatState {
     mistral?: string
     groq?: string
     together?: string
+    perplexity?: string
     ollamaUrl?: string
   }
   projects: Project[]
@@ -48,6 +51,8 @@ interface ChatState {
   toggleModel: (modelId: string) => void
   setSelectedModels: (modelIds: string[]) => void
   setStreaming: (isStreaming: boolean) => void
+  setWebSearchEnabled: (enabled: boolean) => void
+  setResearchEnabled: (enabled: boolean) => void
   setSettings: (settings: Partial<ChatState['settings']>) => void
   addCustomModel: (model: AiModel) => void
   removeCustomModel: (modelId: string) => void
@@ -62,6 +67,8 @@ export const useChatStore = create<ChatState>()(
       currentThreadId: null,
       selectedModels: [],
       isStreaming: false,
+      webSearchEnabled: false,
+      researchEnabled: false,
       isLoading: false,
       projects: [],
       currentProjectId: null,
@@ -190,6 +197,10 @@ export const useChatStore = create<ChatState>()(
           customModels: state.customModels.filter((m) => m.id !== modelId),
           selectedModels: state.selectedModels.filter((id) => id !== modelId),
         })),
+
+      setWebSearchEnabled: (enabled) => set({ webSearchEnabled: enabled }),
+      
+      setResearchEnabled: (enabled) => set({ researchEnabled: enabled }),
 
       setProviderKey: (provider, key) =>
         set((state) => ({

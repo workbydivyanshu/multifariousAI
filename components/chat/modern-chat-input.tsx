@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Send, Loader2, Settings2, Sparkles, Zap } from 'lucide-react'
+import { Send, Loader2, Settings2, Sparkles, Zap, Globe, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { useChatStore } from '@/stores/chat-store'
 
 interface ModernChatInputProps {
   onSend: (message: string) => void
@@ -14,6 +15,8 @@ interface ModernChatInputProps {
   isLoading?: boolean
   modelCount?: number
   onOpenSettings?: () => void
+  showWebSearchToggle?: boolean
+  showResearchToggle?: boolean
 }
 
 const MIN_HEIGHT = 56
@@ -26,10 +29,14 @@ export function ModernChatInput({
   isLoading = false,
   modelCount = 0,
   onOpenSettings,
+  showWebSearchToggle = false,
+  showResearchToggle = false,
 }: ModernChatInputProps) {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  
+  const { webSearchEnabled, researchEnabled, setWebSearchEnabled, setResearchEnabled } = useChatStore()
 
   // Auto-resize textarea
   const adjustHeight = useCallback((reset?: boolean) => {
@@ -131,6 +138,44 @@ export function ModernChatInput({
                   <Zap className="w-3.5 h-3.5" />
                   <span>{modelCount} model{modelCount !== 1 ? 's' : ''}</span>
                 </motion.div>
+              )}
+              
+              {/* Web Search Toggle */}
+              {showWebSearchToggle && (
+                <Button
+                  variant={webSearchEnabled ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                  className={cn(
+                    "rounded-full h-8 px-3 gap-1.5 transition-all",
+                    webSearchEnabled 
+                      ? "bg-blue-500/90 hover:bg-blue-600 text-white" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Enable web search for real-time information"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs">Web</span>
+                </Button>
+              )}
+              
+              {/* Research Toggle */}
+              {showResearchToggle && (
+                <Button
+                  variant={researchEnabled ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setResearchEnabled(!researchEnabled)}
+                  className={cn(
+                    "rounded-full h-8 px-3 gap-1.5 transition-all",
+                    researchEnabled 
+                      ? "bg-purple-500/90 hover:bg-purple-600 text-white" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Enable deep research mode for comprehensive analysis"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs">Research</span>
+                </Button>
               )}
               
               {onOpenSettings && (

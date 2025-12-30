@@ -115,6 +115,15 @@ const PROVIDERS: ProviderConfig[] = [
     description: 'Run AI models locally on your own machine. 100% private and free!',
     hasFreeModels: true,
   },
+  {
+    id: 'perplexity',
+    name: 'Perplexity AI',
+    keyName: 'perplexity',
+    placeholder: 'pplx-...',
+    helpUrl: 'https://docs.perplexity.ai/',
+    description: 'AI with built-in web search and deep research capabilities.',
+    hasFreeModels: false,
+  },
 ]
 
 export function ApiKeySettings() {
@@ -236,6 +245,26 @@ export function ApiKeySettings() {
         } else {
           throw new Error('Invalid API key')
         }
+      } else if (provider.id === 'perplexity') {
+        // Test Perplexity key
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'sonar',
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 1
+          })
+        })
+        // 200 or 400 (bad request with valid key) means key is valid
+        if (response.ok || response.status === 400) {
+          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
+        } else {
+          throw new Error('Invalid API key')
+        }
       }
     } catch (error) {
       setTestStatus(prev => ({ ...prev, [provider.id]: 'error' }))
@@ -281,12 +310,12 @@ export function ApiKeySettings() {
         </DialogHeader>
 
         <Tabs defaultValue="openrouter" className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1">
             {PROVIDERS.map(provider => (
               <TabsTrigger 
                 key={provider.id} 
                 value={provider.id}
-                className="relative"
+                className="relative text-xs px-2 py-1.5"
               >
                 {provider.name}
                 {hasKey(provider) && (
