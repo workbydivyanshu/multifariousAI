@@ -1,58 +1,135 @@
 'use client'
 
-import { useState } from 'react'
-import { ChatMessages } from './chat-messages'
+import { useState, useRef, useEffect } from 'react'
 import { ChatInput } from './chat-input'
 import { ModelSelector } from './model-selector'
+import { MultiResponseView } from './multi-response-view'
+import { QuickModelSelect } from './quick-model-select'
 import { useChatStore } from '@/stores/chat-store'
 import { getModelById } from '@/lib/models'
-import { MAX_MODELS } from '@/types'
+import { parseApiError, getUserFriendlyMessage, logError } from '@/lib/error-handler'
+import { Message } from '@/types'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Loader2, Zap, Settings2 } from 'lucide-react'
+
+interface ResponseGroup {
+  userMessage: Message
+  responses: Message[]
+  consensusResponse?: Message | null
+}
 
 export function ChatMain() {
-  const { currentThreadId, threads, selectedModels, addMessage, setStreaming, providerKeys, isStreaming } = useChatStore()
+  const { 
+    currentThreadId, 
+    threads, 
+    selectedModels, 
+    addMessage, 
+    addThread,
+    setStreaming, 
+    setCurrentThread,
+    providerKeys, 
+    isStreaming 
+  } = useChatStore()
+  
   const currentThread = threads.find(t => t.id === currentThreadId)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [consensusLoading, setConsensusLoading] = useState<string | null>(null)
+  const [consensusResponses, setConsensusResponses] = useState<Record<string, Message>>({})
+
+  // Group messages by user query
+  const responseGroups: ResponseGroup[] = []
+  if (currentThread) {
+    let currentGroup: ResponseGroup | null = null
+    
+    for (const msg of currentThread.messages) {
+      if (msg.role === 'user') {
+        if (currentGroup) {
+          responseGroups.push(currentGroup)
+        }
+        currentGroup = {
+          userMessage: msg,
+          responses: [],
+          consensusResponse: consensusResponses[msg.id] || null
+        }
+      } else if (msg.role === 'assistant' && currentGroup) {
+        currentGroup.responses.push(msg)
+      }
+    }
+    
+    if (currentGroup) {
+      responseGroups.push(currentGroup)
+    }
+  }
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [currentThread?.messages.length])
 
   const handleSendMessage = async (content: string, attachments?: any[]) => {
-    if (!currentThreadId || selectedModels.length === 0) return
+    // Auto-create thread if none exists
+    let threadId = currentThreadId
+    if (!threadId) {
+      const newThread = {
+        id: `thread-${Date.now()}`,
+        title: content.slice(0, 50) + (content.length > 50 ? '...' : ''),
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+      addThread(newThread)
+      threadId = newThread.id
+      setCurrentThread(newThread.id)
+    }
 
-    const userMessage = {
+    if (selectedModels.length === 0) return
+
+    const userMessage: Message = {
       id: `msg-${Date.now()}`,
-      role: 'user' as const,
+      role: 'user',
       content,
       timestamp: Date.now(),
       attachments,
     }
 
-    addMessage(currentThreadId, userMessage)
+    addMessage(threadId, userMessage)
     setStreaming(true)
 
-    const messages = [...(currentThread?.messages || []), userMessage]
+    const thread = threads.find(t => t.id === threadId)
+    const messages = [...(thread?.messages || []), userMessage]
 
-    for (const modelId of selectedModels) {
+    // Query all selected models in parallel
+    const modelPromises = selectedModels.map(async (modelId) => {
       const model = getModelById(modelId)
-      if (!model) continue
+      if (!model) return null
 
       try {
-        let apiUrl: string
-        let body: any = { messages, model: model.model }
-
-        if (model.provider === 'ollama') {
-          apiUrl = '/api/ollama'
-          body.baseUrl = providerKeys.ollamaUrl || process.env.OLLAMA_URL
-        } else if (model.provider === 'openrouter') {
-          apiUrl = '/api/openrouter'
-          body.apiKey = providerKeys.openrouter || process.env.OPENROUTER_API_KEY
-        } else if (model.provider === 'gemini') {
-          apiUrl = '/api/gemini'
-          body.apiKey = providerKeys.gemini || process.env.GEMINI_API_KEY
-        } else {
-          throw new Error(`Unknown provider: ${model.provider}`)
+        const requestBody: any = {
+          messages: messages.map(m => ({
+            role: m.role,
+            content: m.content
+          })),
+          model: model.model,
+          provider: model.provider,
         }
 
-        const response = await fetch(apiUrl, {
+        // Add provider-specific keys
+        if (model.provider === 'ollama') {
+          requestBody.baseUrl = providerKeys.ollamaUrl || 'http://localhost:11434'
+        } else if (model.provider === 'openrouter') {
+          requestBody.apiKey = providerKeys.openrouter
+        } else if (model.provider === 'gemini') {
+          requestBody.apiKey = providerKeys.gemini
+        }
+
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify(requestBody),
         })
 
         if (!response.ok) {
@@ -88,54 +165,177 @@ export function ChatMain() {
           }
         }
 
-        const assistantMessage = {
+        const assistantMessage: Message = {
           id: `msg-${Date.now()}-${modelId}`,
-          role: 'assistant' as const,
+          role: 'assistant',
           content: fullContent || 'No response received.',
           model: modelId,
           timestamp: Date.now(),
         }
 
-        addMessage(currentThreadId, assistantMessage)
+        addMessage(threadId!, assistantMessage)
+        return assistantMessage
       } catch (error) {
-        console.error(`Error getting response from ${model.label}:`, error)
-        const errorMessage = {
+        const apiError = parseApiError(error)
+        const userFriendlyMessage = getUserFriendlyMessage(apiError)
+        logError(`Chat error for model ${model?.label || modelId}`, apiError)
+
+        const errorMessage: Message = {
           id: `msg-${Date.now()}-${modelId}-error`,
-          role: 'assistant' as const,
-          content: `Error: ${error instanceof Error ? error.message : 'Failed to get response. Please check your API keys and try again.'}`,
+          role: 'assistant',
+          content: `⚠️ ${userFriendlyMessage}`,
           model: modelId,
           timestamp: Date.now(),
         }
-        addMessage(currentThreadId, errorMessage)
+        addMessage(threadId!, errorMessage)
+        return errorMessage
       }
-    }
+    })
 
+    await Promise.all(modelPromises)
     setStreaming(false)
   }
 
+  const handleRequestConsensus = async (userMessageId: string, userQuery: string, responses: Message[]) => {
+    setConsensusLoading(userMessageId)
+
+    try {
+      const response = await fetch('/api/consensus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userQuery,
+          responses: responses.map(r => ({
+            model: getModelById(r.model || '')?.label || r.model || 'Unknown',
+            content: r.content
+          })),
+          apiKey: providerKeys.openrouter
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get consensus')
+      }
+
+      const data = await response.json()
+      
+      const consensusMessage: Message = {
+        id: `consensus-${userMessageId}`,
+        role: 'assistant',
+        content: data.consensus,
+        model: 'consensus',
+        timestamp: Date.now(),
+      }
+
+      setConsensusResponses(prev => ({
+        ...prev,
+        [userMessageId]: consensusMessage
+      }))
+    } catch (error) {
+      console.error('Consensus error:', error)
+    } finally {
+      setConsensusLoading(null)
+    }
+  }
+
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-auto p-4">
-          {!currentThread ? (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <div className="text-center max-w-md">
-                <h2 className="text-xl font-semibold mb-2">Welcome to MultifariousAI</h2>
-                <p className="text-sm">
-                  Select or create a thread to start chatting with multiple AI models
-                </p>
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Top Bar with Quick Model Select */}
+      <div className="border-b p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500" />
+            <span className="font-semibold">Compare AI Models</span>
+            <Badge variant="outline" className="text-xs">
+              {selectedModels.length} selected
+            </Badge>
+          </div>
+          <ModelSelector />
+        </div>
+        <QuickModelSelect />
+      </div>
+
+      {/* Messages Area */}
+      <ScrollArea className="flex-1" ref={scrollRef}>
+        <div className="p-4 space-y-8 max-w-4xl mx-auto">
+          {!currentThread || responseGroups.length === 0 ? (
+            <div className="flex h-full min-h-[400px] items-center justify-center text-muted-foreground">
+              <div className="text-center max-w-lg">
+                <div className="mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                    <Zap className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">Welcome to MultifariousAI</h2>
+                  <p className="text-muted-foreground">
+                    Compare responses from multiple AI models side-by-side.
+                    Select your models above and start chatting!
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                  <div className="p-4 rounded-lg border bg-card">
+                    <h3 className="font-semibold mb-1">🆓 Free Models</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Use powerful AI models without any API keys
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg border bg-card">
+                    <h3 className="font-semibold mb-1">⚡ Side-by-Side</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Compare up to 5 models at once
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg border bg-card">
+                    <h3 className="font-semibold mb-1">🏆 AI Consensus</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Let AI pick the best answer for you
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
-            <ChatMessages messages={currentThread.messages} selectedModels={selectedModels} />
+            responseGroups.map((group, idx) => (
+              <MultiResponseView
+                key={group.userMessage.id}
+                userMessage={group.userMessage}
+                responses={group.responses}
+                onRequestConsensus={() => handleRequestConsensus(
+                  group.userMessage.id,
+                  group.userMessage.content,
+                  group.responses
+                )}
+                consensusLoading={consensusLoading === group.userMessage.id}
+                consensusResponse={group.consensusResponse}
+                isStreaming={isStreaming && idx === responseGroups.length - 1}
+              />
+            ))
+          )}
+
+          {isStreaming && (
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Getting responses from {selectedModels.length} model(s)...</span>
+            </div>
           )}
         </div>
-        <div className="border-t p-4">
-          <ModelSelector />
+      </ScrollArea>
+
+      {/* Input Area */}
+      <div className="border-t p-4">
+        <div className="max-w-4xl mx-auto">
           <ChatInput
             onSend={handleSendMessage}
-            disabled={!currentThreadId || selectedModels.length === 0 || isStreaming}
+            disabled={selectedModels.length === 0 || isStreaming}
+            placeholder={
+              selectedModels.length === 0 
+                ? "Select at least one model above to start..." 
+                : `Ask ${selectedModels.length} AI model${selectedModels.length > 1 ? 's' : ''}...`
+            }
           />
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Responses are generated by AI and may not be accurate. Verify important information.
+          </p>
         </div>
       </div>
     </div>

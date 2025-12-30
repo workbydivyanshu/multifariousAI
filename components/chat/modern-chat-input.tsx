@@ -1,0 +1,202 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Send, Loader2, Settings2, Sparkles, Zap } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+
+interface ModernChatInputProps {
+  onSend: (message: string) => void
+  disabled?: boolean
+  placeholder?: string
+  isLoading?: boolean
+  modelCount?: number
+  onOpenSettings?: () => void
+}
+
+const MIN_HEIGHT = 56
+const MAX_HEIGHT = 200
+
+export function ModernChatInput({
+  onSend,
+  disabled = false,
+  placeholder = 'Ask anything...',
+  isLoading = false,
+  modelCount = 0,
+  onOpenSettings,
+}: ModernChatInputProps) {
+  const [value, setValue] = useState('')
+  const [isFocused, setIsFocused] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-resize textarea
+  const adjustHeight = useCallback((reset?: boolean) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    if (reset) {
+      textarea.style.height = `${MIN_HEIGHT}px`
+      return
+    }
+
+    textarea.style.height = `${MIN_HEIGHT}px`
+    const newHeight = Math.max(
+      MIN_HEIGHT,
+      Math.min(textarea.scrollHeight, MAX_HEIGHT)
+    )
+    textarea.style.height = `${newHeight}px`
+  }, [])
+
+  useEffect(() => {
+    adjustHeight()
+  }, [value, adjustHeight])
+
+  const handleSubmit = () => {
+    if (!value.trim() || disabled || isLoading) return
+    onSend(value.trim())
+    setValue('')
+    adjustHeight(true)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
+
+  const canSubmit = value.trim() && !disabled && !isLoading
+
+  return (
+    <div className="w-full max-w-4xl mx-auto px-4">
+      <motion.div
+        className={cn(
+          'relative rounded-2xl border-2 bg-background/80 backdrop-blur-xl shadow-lg transition-all duration-300',
+          isFocused 
+            ? 'border-primary/50 shadow-primary/20 shadow-xl' 
+            : 'border-border/50 hover:border-border',
+          disabled && 'opacity-60'
+        )}
+        initial={false}
+        animate={{
+          scale: isFocused ? 1.01 : 1,
+        }}
+        transition={{ duration: 0.2 }}
+      >
+        {/* Glow effect */}
+        <AnimatePresence>
+          {isFocused && (
+            <motion.div
+              className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-r from-primary/20 via-purple-500/20 to-pink-500/20 blur-xl"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+            />
+          )}
+        </AnimatePresence>
+
+        <div className="p-3">
+          {/* Textarea */}
+          <Textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder={placeholder}
+            disabled={disabled}
+            className={cn(
+              'resize-none border-0 bg-transparent p-2 text-base shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/60',
+              'scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent'
+            )}
+            style={{ 
+              minHeight: `${MIN_HEIGHT}px`,
+              maxHeight: `${MAX_HEIGHT}px`
+            }}
+          />
+
+          {/* Actions bar */}
+          <div className="flex items-center justify-between pt-2 border-t border-border/30 mt-2">
+            <div className="flex items-center gap-2">
+              {modelCount > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>{modelCount} model{modelCount !== 1 ? 's' : ''}</span>
+                </motion.div>
+              )}
+              
+              {onOpenSettings && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onOpenSettings}
+                  className="rounded-full h-8 px-3 text-muted-foreground hover:text-foreground"
+                >
+                  <Settings2 className="w-4 h-4 mr-1.5" />
+                  <span className="hidden sm:inline">Settings</span>
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Character count */}
+              {value.length > 0 && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-xs text-muted-foreground"
+                >
+                  {value.length}
+                </motion.span>
+              )}
+
+              {/* Submit button */}
+              <motion.div
+                whileHover={{ scale: canSubmit ? 1.05 : 1 }}
+                whileTap={{ scale: canSubmit ? 0.95 : 1 }}
+              >
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!canSubmit}
+                  size="sm"
+                  className={cn(
+                    'rounded-full h-10 px-4 gap-2 transition-all duration-300',
+                    canSubmit
+                      ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-500 text-white shadow-lg shadow-primary/25'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Ask AI</span>
+                      <Send className="w-4 h-4" />
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Helper text */}
+      <p className="text-center text-xs text-muted-foreground mt-3">
+        Press <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Shift+Enter</kbd> for new line
+      </p>
+    </div>
+  )
+}

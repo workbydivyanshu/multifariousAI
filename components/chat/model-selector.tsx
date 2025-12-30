@@ -43,101 +43,101 @@ export function ModelSelector() {
             })
           )}
         </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Select Models ({selectedModels.length}/{CONSTANTS.MAX_MODELS})
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-96 p-0" align="end">
-                <ScrollArea className="max-h-[500px]">
-                  <div className="p-4 space-y-4">
-                    {/* Free Models Section */}
-                    {freeModels.length > 0 && (
-                      <div>
-                        <h3 className="mb-3 text-sm font-semibold flex items-center gap-2">
-                          <span className="text-green-500">🆓</span>
-                          Free Models
-                        </h3>
-                        <div className="space-y-2">
-                          {freeModels.map((model) => (
-                            <label
-                              key={model.id}
-                              className="flex items-start space-x-2 cursor-pointer p-2 rounded hover:bg-muted"
-                            >
-                              <Checkbox
-                                checked={selectedModels.includes(model.id)}
-                                onCheckedChange={() => toggleModel(model.id)}
-                                disabled={
-                                  !selectedModels.includes(model.id) &&
-                                  selectedModels.length >= CONSTANTS.MAX_MODELS
-                                }
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium truncate">
-                                    {model.label}
-                                  </span>
-                                  {model.free && (
-                                    <Badge variant="outline" className="text-xs">
-                                      FREE
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {model.description}
-                                </p>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Paid Models Section */}
-                    {models.filter(m => !m.free).length > 0 && (
-                      <div>
-                        <h3 className="mb-3 text-sm font-semibold">
-                          Paid Models (Requires API Key)
-                        </h3>
-                        <div className="space-y-2">
-                          {models
-                            .filter(m => !m.free)
-                            .map((model) => (
-                              <label
-                                key={model.id}
-                                className="flex items-start space-x-2 cursor-pointer p-2 rounded hover:bg-muted"
-                              >
-                                <Checkbox
-                                  checked={selectedModels.includes(model.id)}
-                                  onCheckedChange={() => toggleModel(model.id)}
-                                  disabled={
-                                    !selectedModels.includes(model.id) &&
-                                    selectedModels.length >= CONSTANTS.MAX_MODELS
-                                  }
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium truncate">
-                                      {model.label}
-                                    </span>
-                                    <Badge variant="outline" className="text-xs">
-                                      {model.provider}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {model.description}
-                                  </p>
-                                </div>
-                              </label>
-                            ))}
-                        </div>
-                      </div>
-                    )}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm">
+              Select Models ({selectedModels.length}/{CONSTANTS.MAX_MODELS})
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-96 p-0" align="end">
+            <ScrollArea className="max-h-[500px]">
+              <div className="p-4 space-y-4">
+                {/* Free Models Section */}
+                {freeModels.length > 0 && (
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold flex items-center gap-2">
+                      <span className="text-green-500">🆓</span>
+                      Free Models
+                    </h3>
+                    <div className="space-y-2">
+                      {freeModels.map((model) => (
+                        <label
+                          key={model.id}
+                          className="flex items-start space-x-2 cursor-pointer p-2 rounded hover:bg-muted"
+                        >
+                          <Checkbox
+                            checked={selectedModels.includes(model.id)}
+                            onCheckedChange={() => toggleModel(model.id)}
+                            disabled={
+                              !selectedModels.includes(model.id) &&
+                              selectedModels.length >= CONSTANTS.MAX_MODELS
+                            }
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium truncate">
+                                {model.label}
+                              </span>
+                              {model.free && (
+                                <Badge variant="outline" className="text-xs">
+                                  FREE
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {model.description}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
+                )}
+
+                {/* Paid Models Section */}
+                {models.filter(m => !m.free).length > 0 && (
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold">
+                      Paid Models (Requires API Key)
+                    </h3>
+                    <div className="space-y-2">
+                      {models
+                        .filter(m => !m.free)
+                        .map((model) => (
+                          <label
+                            key={model.id}
+                            className="flex items-start space-x-2 cursor-pointer p-2 rounded hover:bg-muted"
+                          >
+                            <Checkbox
+                              checked={selectedModels.includes(model.id)}
+                              onCheckedChange={() => toggleModel(model.id)}
+                              disabled={
+                                !selectedModels.includes(model.id) &&
+                                selectedModels.length >= CONSTANTS.MAX_MODELS
+                              }
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium truncate">
+                                  {model.label}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {model.provider}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {model.description}
+                              </p>
+                            </div>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   )

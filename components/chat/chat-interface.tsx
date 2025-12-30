@@ -1,20 +1,20 @@
 'use client'
 
-import { useState } from 'react'
-import { ChatSidebar } from './chat-sidebar'
-import { ChatMain } from './chat-main'
-import { ChatHeader } from './chat-header'
+import { useEffect, useState } from 'react'
+import { ModernChatMain } from './modern-chat-main'
+import { useChatStore } from '@/stores/chat-store'
 
 export function ChatInterface() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { loadUserData } = useChatStore()
+
+  useEffect(() => {
+    // Load user data from localStorage on mount
+    loadUserData()
+  }, [loadUserData])
 
   return (
-    <div className="flex h-screen bg-background">
-      <ChatSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
-      <div className="flex-1 flex flex-col">
-        <ChatHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <ChatMain />
-      </div>
-    </div>
+    <main className="h-screen w-full bg-background">
+      <ModernChatMain />
+    </main>
   )
 }

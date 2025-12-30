@@ -1,155 +1,231 @@
 @echo off
+echo MultifariousAI Docker Start Script v2.1 - Final Version
 setlocal enabledelayedexpansion
 
-:: MultifariousAI Docker Start Script
-:: Version 1.1 - Enhanced with better directory handling
-
+:: Enhanced with Docker Desktop robustness and fallbacks
 echo ==========================================
 echo     MULTIFARIOUS AI DOCKER STARTUP
 echo ==========================================
-echo.
-
-:: Save current directory
-set "CURRENT_DIR=%CD%"
 
 :: Check if Docker Desktop is running
 echo.
-echo [INFO] Checking Docker Desktop...
 docker info >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [WARNING] Docker Desktop not found or not running
-    echo.
-    echo Please start Docker Desktop and try again
-    echo.
-    echo This script will continue attempting to start services...
-    echo.
-    timeout /t 30
-    goto :continue
+if %errorlevel% equq 0 (
+    echo [ERROR] Docker Desktop is not running or not accessible
+    goto :docker_not_running
+) else (
+    echo [SUCCESS] Docker Desktop detected
+    goto :docker_ready
 )
 
-echo [SUCCESS] Docker Desktop is running!
+:docker_not_running
+echo [INFO] Restarting Docker Desktop to clear cache...
+tasklist /F "IM docker-desktop.exe" /T /nul /fim /PID >nul 2>&1
+echo [INFO] Restarting Docker Desktop...
+timeout /t 15 /nobreak >nul
+docker info >nul 2>&1
+if %errorlevel% equq 0 (
+    goto :docker_not_running
+) else (
+    echo [SUCCESS] Docker Desktop restarted
+    goto :docker_ready
+)
+
+:docker_ready
+echo [INFO] Docker Desktop is now running
+goto :start_services
+
+:start_services
 echo.
-
-:: Navigate to project directory - try multiple methods
-echo [INFO] Current directory: %CURRENT_DIR%
-echo [INFO] Target directory: C:\Users\shaolinOP\Documents\GitHub\multifariousAI
-
-:: Method 1: Try direct path
-cd /d "C:\Users\shaolinOP\Documents\GitHub\multifariousAI" >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [SUCCESS] Navigated to project directory
-    goto :found_dir
-) else (
-    echo [INFO] Direct navigation failed, trying USERPROFILE method...
-)
-
-:: Method 2: Try USERPROFILE
-cd /d "%USERPROFILE%\Documents\GitHub\multifariousAI" >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [SUCCESS] Navigated to project directory via USERPROFILE
-    goto :found_dir
-) else (
-    echo [WARNING] Could not navigate to project directory
-    echo [INFO] Current directory: %CD%
-    echo [INFO] Please navigate manually to: C:\Users\shaolinOP\Documents\GitHub\multifariousAI
-    echo.
-    set "NAVIGATE_MANUALLY=true"
-)
-
-:found_dir
-
-:: Check if .env file exists
+echo [INFO] Loading environment variables...
+setlocal enabledelayedexpansion
 if exist .env (
     echo [INFO] Using existing .env file
+    for /f "tokens=1-2 delims=" %%a in (.env)" do (
+        if "%%a" == "OPENROUTER_API_KEY" (
+            set "HAS_OPENROUTER_API_KEY=%%b"
+        ) else if "%%a" == "GEMINI_API_KEY" (
+            set "HAS_GEMINI_API_KEY=%%b"
+        ) else if "%%a" == "OLLAMA_URL" (
+            set "HAS_OLLAMA_URL=%%b"
+        )
+    )
+    echo [INFO] Environment loaded from .env
 ) else (
-    echo [INFO] Creating .env from example...
-    copy .env.example .env
-    echo [INFO] Please edit .env file with your API keys if needed
-    echo.
+    echo [INFO] Creating .env from template...
+    copy .env.example .env.local >nul 2>&1
+    echo [WARNING] Please edit .env file with your API keys:
+    echo [INFO]   - OPENROUTER_API_KEY (for OpenRouter models)
+    echo [INFO]   - GEMINI_API_KEY (for Gemini models)
+    echo [INFO]   - OLLAMA_URL (for local Ollama models)
+    echo [INFO] - DEBUG (Enable for verbose logging)
 )
 
 :: Stop any existing containers gracefully
-echo.
-echo [INFO] Stopping any existing containers...
-docker-compose down --remove-orphans --timeout 10 >nul 2>&1
+echo [INFO] Stopping existing containers...
+docker-compose down --remove-orphans --timeout 30 >nul 2>&1
 
-:: Build Docker image
-echo.
-echo [INFO] Building Docker image...
-docker-compose build >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Docker build failed
-    echo [INFO] Please check docker-compose.yml and Dockerfile
-    pause
-    exit /b 1
-    goto :end
+:: Smart build with fallback strategy
+echo [INFO] Using stable build process...
+if "%USE_DOCKER%"=="true" (
+    docker-compose build >nul 2>&1
+    echo [INFO] Using production build from Docker Compose
+) else (
+    echo [INFO] Using local development build...
+    docker-compose build >nul 2>&1
+)
+    if %errorlevel% neq 0 (
+        echo [ERROR] Docker build failed
+        goto :build_failed
+    ) else (
+        echo [SUCCESS] Docker build completed successfully
+        goto :start_services
+    )
 )
 
-:: Start containers in detached mode
-echo.
-echo [INFO] Starting Docker containers...
-docker-compose up --build -d >nul 2>&1
+:start_services
+echo [INFO] Starting MultifariousAI containers...
+docker-compose up -d >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to start containers
     echo [INFO] Checking Docker Desktop status...
     docker info >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo [ERROR] Docker Desktop is not responding
-        echo [INFO] Please restart Docker Desktop
+    if !errorlevel! (
+        goto :retry_start
+    ) else (
+        echo [SUCCESS] Services starting...
+        goto :wait_ready
     )
+) else (
+    echo [WARNING] Services are not starting as expected
+        echo [INFO] Continuing anyway...
+    )
+
+:wait_ready
+echo [INFO] Waiting for services to be ready...
+set /a=0
+timeout /t 120 /nobreak >nul
+:wait_loop_start
+echo [INFO] Checking service status... (%a%)
+set /a=0
+docker-compose ps --filter "status=running" --format "table {{.}}\\t{{.Name}}\\t{{.State}}} --no-truncation" >nul 2>&1
+
+findstr /i "app" /i "Up" >nul 2>&1
+for /f "%%i" in ("1" "2" "3" "4" "5" "6") do (
+    if "%%i" == "Up" (
+        echo [SUCCESS] Services are ready! (%a/120 seconds)
+        set /a=%%a+1
+        goto :services_ready
+    ) else (
+        echo [INFO] Services starting... (%%a/120 seconds)
+        echo [INFO] Taking longer than expected (%%a/120)
+    ) else (
+        echo [WARNING] Services not ready, waiting... (%%a/120)
+    )
+    timeout /t 3 /nobreak >nul
+    set /a=%%a+1
+    goto :loop_start
+)
+
+:services_not_ready
+echo [ERROR] Services failed to start properly
+    echo [ERROR] Checking container logs...
+    docker-compose logs app >nul 2>&1
     pause
     exit /b 1
     goto :end
 )
 
-:: Wait for services to be ready
+:services_ready
 echo.
-echo [INFO] Waiting for services to be ready...
-set /a=0
-:wait_ready
-timeout /t 60 /nobreak >nul 2>&1
-echo Checking service status... /a
-set /a
-docker-compose ps --filter "status=running" --format "table {{.Name}}\t{{.Status}}" >nul 2>&1
-for /f %%i in (%output) do (
-    if "%%i" == "app" (
-        if "%%j" == "Up" (
-            echo [SUCCESS] Services are ready! (%%a/60 seconds)
-            set /a=%%a
-            goto :ready
-        )
-    )
-)
-echo /a seconds passed...
-if %a% lss 60 (
-    echo [WARNING] Services taking longer than expected
-    echo [INFO] Continuing wait...
-    goto :wait_ready
-)
-
-:ready
 echo.
 echo ==========================================
-echo MULTIFARIOUS AI IS NOW RUNNING!
+echo [SUCCESS] MULTIFARIOUS AI IS NOW RUNNING!
 echo ==========================================
 echo.
 echo Application URL: http://localhost:3000
 echo.
-echo Commands:
+echo Quick Commands:
 echo   - View logs: docker-compose logs -f app
-echo   - Stop: docker-compose down
-echo   - Status: docker-compose ps
+echo   - Stop services: docker-compose down
+echo   - Check status: docker-compose ps
 echo.
 echo Press Ctrl+C to stop containers
 echo.
-
-:: Continuous logging
-:keep_running
 echo.
-docker-compose logs -f app
+
+:: Keep script running to show logs
+:keep_running
+docker-compose logs -f
 goto :keep_running
 
 :end
+pause >nul
 echo.
 echo Press any key to exit...
+goto :end
+
+:build_failed
+echo.
+echo [ERROR] Docker build failed
+echo.
+echo Please check:
+echo   - Docker Desktop is running: Start Docker Desktop app
+echo   - docker-compose.yml: Check configuration
+echo   - Dockerfile: Check build process
+echo   - .env: Check environment variables
+echo   - System: Clear cache: docker system prune -f
+echo   - Manual build: docker-compose up --build
+echo.
+goto :build_failed
+
+:end
+
+:retry_start
+echo.
+echo [INFO] Retrying Docker build...
+set /a=0
+goto :retry_start
+
+:services_not_ready
+echo.
+echo [INFO] Attempting Docker build...
+docker-compose build >nul 2>&1
+if %errorlevel% equq 0 (
+    echo [ERROR] Build failed
+    echo [WARNING] Trying alternative build...
+) else (
+    echo [SUCCESS] Docker build completed successfully
+    goto :start_services
+    )
+
+:manual_build
+echo.
+echo [INFO] Using manual build strategy...
+docker-compose up --build
+if %errorlevel% neq 0 (
+    echo [ERROR] Manual build failed
+    pause
+    exit /b 1
+    goto :end
+)
+
+:end
+
+:success
+echo.
+echo.
+echo ==========================================
+echo [SUCCESS] LOCAL BUILD COMPLETED!
+echo ==========================================
+echo.
+echo Application URL: http://localhost:3000
+echo Start development server: npm run start
+echo.
+
+:keep_logs
+docker-compose logs -f
+goto :keep_running
+
+:end
 pause >nul

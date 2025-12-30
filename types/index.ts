@@ -20,11 +20,29 @@ export interface Provider {
   requiresAuth: boolean
 }
 
+// Slide Types - for the multi-AI comparison interface
+export type SlideType = 'api'
+
+export interface AISlide {
+  id: string
+  type: SlideType
+  name: string
+  enabled: boolean
+  // For API-based slides
+  modelId?: string
+  provider?: string
+  apiKey?: string
+  // UI state
+  collapsed?: boolean
+  order: number
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
   model?: string
+  slideId?: string
   timestamp: number
   attachments?: Attachment[]
 }
@@ -44,6 +62,15 @@ export interface Thread {
   updatedAt: number
 }
 
+export interface Project {
+  id: string
+  name: string
+  description?: string
+  threadIds: string[]
+  createdAt: number
+  updatedAt: number
+}
+
 export interface ChatSettings {
   temperature?: number
   maxTokens?: number
@@ -52,11 +79,13 @@ export interface ChatSettings {
   presencePenalty?: number
 }
 
- export const CONSTANTS = {
-  MAX_MODELS: 5,
+export const CONSTANTS = {
+  MAX_MODELS: 100,
+  MAX_SLIDES: 100,
   FREE_MESSAGE_LIMIT: 50,
   RESET_TIME: 24 * 60 * 60 * 1000, //1 day
   MAX_OUTPUT_TOKENS: 10000,
 }
 
-export const MAX_MODELS = 5
+export const MAX_MODELS = 100
+export const MAX_SLIDES = 100

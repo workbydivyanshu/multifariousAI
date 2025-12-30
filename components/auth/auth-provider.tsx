@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useContext } from 'react'
+import { authClient } from '@/lib/auth-client'
+import React, { useContext, useEffect, useState } from 'react'
 
 interface AuthContextType {
   user: any
@@ -15,14 +16,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useState(() => {
-    setLoading(false)
-  })
+  useEffect(() => {
+    const getSession = async () => {
+      try {
+        const { data } = await authClient.getSession()
+        setUser(data?.user || null)
+      } catch (error) {
+        console.error('Failed to get session:', error)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    getSession()
+  }, [])
 
   const signIn = async () => {
+    // This will be handled by the auth client
   }
 
   const signOut = async () => {
+    await authClient.signOut()
     setUser(null)
   }
 

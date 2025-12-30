@@ -24,11 +24,7 @@ export function useModels() {
 
   return {
     models: availableModels,
-    freeModels: getFreeModels().filter(m => {
-      if (m.provider === 'openrouter' && !hasOpenRouterKey) return false
-      if (m.provider === 'gemini' && !hasGeminiKey) return false
-      return true
-    }),
+    freeModels: getFreeModels(),
     customModels,
   }
 }

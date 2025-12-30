@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Message, Thread, CONSTANTS, AiModel } from '@/types'
+import { Message, Thread, CONSTANTS, AiModel, Project } from '@/types'
+
+// Note: Database operations are disabled for local-only mode
+// All data is persisted to localStorage via zustand/persist middleware
+// To enable database persistence, implement server actions separately
 
 interface ChatState {
   threads: Thread[]
@@ -15,9 +19,27 @@ interface ChatState {
   customModels: AiModel[]
   providerKeys: {
     openrouter?: string
+    openai?: string
+    anthropic?: string
     gemini?: string
+    mistral?: string
+    groq?: string
+    together?: string
     ollamaUrl?: string
   }
+  projects: Project[]
+  currentProjectId: string | null
+  isLoading: boolean
+  // Database operations (stub for local-only mode)
+  loadUserData: () => Promise<void>
+  saveThreadToDB: (thread: Thread) => Promise<void>
+  deleteThreadFromDB: (threadId: string) => Promise<void>
+  // Project operations
+  createProject: (name: string) => void
+  updateProject: (id: string, updates: Partial<Project>) => void
+  deleteProject: (id: string) => void
+  setCurrentProject: (id: string | null) => void
+  // Local operations
   addThread: (thread: Thread) => void
   updateThread: (id: string, updates: Partial<Thread>) => void
   deleteThread: (id: string) => void
@@ -35,11 +57,14 @@ interface ChatState {
 
 export const useChatStore = create<ChatState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       threads: [],
       currentThreadId: null,
       selectedModels: [],
       isStreaming: false,
+      isLoading: false,
+      projects: [],
+      currentProjectId: null,
       settings: {
         temperature: 0.7,
         maxTokens: 4000,
@@ -48,6 +73,59 @@ export const useChatStore = create<ChatState>()(
       customModels: [],
       providerKeys: {},
 
+      // Database operations - stubbed for local-only mode
+      // All data is persisted to localStorage via zustand/persist
+      loadUserData: async () => {
+        // In local-only mode, data is auto-loaded from localStorage
+        // No database operation needed
+        set({ isLoading: false });
+      },
+
+      saveThreadToDB: async (thread) => {
+        // In local-only mode, data is auto-saved to localStorage
+        console.log('Thread saved locally:', thread.id);
+      },
+
+      deleteThreadFromDB: async (threadId) => {
+        // In local-only mode, deletion is handled by updateThread
+        console.log('Thread deleted locally:', threadId);
+      },
+
+      // Project operations
+      createProject: (name: string) => {
+        const newProject: Project = {
+          id: `project-${Date.now()}`,
+          name,
+          threadIds: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((state) => ({
+          projects: [...state.projects, newProject],
+          currentProjectId: newProject.id,
+        }));
+      },
+
+      updateProject: (id: string, updates: Partial<Project>) => {
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
+          ),
+        }));
+      },
+
+      deleteProject: (id: string) => {
+        set((state) => ({
+          projects: state.projects.filter((p) => p.id !== id),
+          currentProjectId: state.currentProjectId === id ? null : state.currentProjectId,
+        }));
+      },
+
+      setCurrentProject: (id: string | null) => {
+        set({ currentProjectId: id });
+      },
+
+      // Thread operations
       addThread: (thread) =>
         set((state) => ({
           threads: [...state.threads, thread],
@@ -64,8 +142,7 @@ export const useChatStore = create<ChatState>()(
       deleteThread: (id) =>
         set((state) => ({
           threads: state.threads.filter((t) => t.id !== id),
-          currentThreadId:
-            state.currentThreadId === id ? null : state.currentThreadId,
+          currentThreadId: state.currentThreadId === id ? null : state.currentThreadId,
         })),
 
       setCurrentThread: (id) => set({ currentThreadId: id }),
@@ -85,39 +162,33 @@ export const useChatStore = create<ChatState>()(
 
       toggleModel: (modelId) =>
         set((state) => {
-          const isSelected = state.selectedModels.includes(modelId)
+          const isSelected = state.selectedModels.includes(modelId);
           if (isSelected) {
-            return {
-              selectedModels: state.selectedModels.filter((id) => id !== modelId),
-            }
+            return { selectedModels: state.selectedModels.filter((id) => id !== modelId) };
           } else if (state.selectedModels.length < CONSTANTS.MAX_MODELS) {
-            return {
-              selectedModels: [...state.selectedModels, modelId],
-            }
+            return { selectedModels: [...state.selectedModels, modelId] };
           }
-          return state
+          return state;
         }),
 
-      setSelectedModels: (modelIds) =>
-        set({
-          selectedModels: modelIds.slice(0, CONSTANTS.MAX_MODELS),
-        }),
+      setSelectedModels: (modelIds) => set({ selectedModels: modelIds.slice(0, CONSTANTS.MAX_MODELS) }),
 
       setStreaming: (isStreaming) => set({ isStreaming }),
 
-      setSettings: (newSettings) =>
+      setSettings: (settings) =>
         set((state) => ({
-          settings: { ...state.settings, ...newSettings },
+          settings: { ...state.settings, ...settings },
         })),
 
       addCustomModel: (model) =>
         set((state) => ({
-          customModels: [...state.customModels, model],
+          customModels: [...state.customModels, { ...model, custom: true }],
         })),
 
       removeCustomModel: (modelId) =>
         set((state) => ({
           customModels: state.customModels.filter((m) => m.id !== modelId),
+          selectedModels: state.selectedModels.filter((id) => id !== modelId),
         })),
 
       setProviderKey: (provider, key) =>
@@ -132,17 +203,19 @@ export const useChatStore = create<ChatState>()(
           selectedModels: [],
           isStreaming: false,
           customModels: [],
+          projects: [],
+          currentProjectId: null,
         }),
     }),
     {
-      name: 'multifariousai-storage',
+      name: 'multifarious-chat-storage',
       partialize: (state) => ({
         threads: state.threads,
-        currentThreadId: state.currentThreadId,
-        selectedModels: state.selectedModels,
-        settings: state.settings,
         customModels: state.customModels,
         providerKeys: state.providerKeys,
+        settings: state.settings,
+        projects: state.projects,
+        selectedModels: state.selectedModels,
       }),
     }
   )

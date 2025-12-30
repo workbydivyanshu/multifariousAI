@@ -24,8 +24,10 @@
 - **Auto-Discovery** - Automatically import all your Ollama models
 
 ### 🔥 **Core Features**
+- **User Authentication** - Sign up/login with GitHub or Google OAuth
+- **Chat Persistence** - Save conversations to PostgreSQL database
 - **Multi-Model Chat** - Compare up to 5 models side-by-side
-- **Chat History** - Persistent storage with Zustand
+- **Chat History** - Persistent storage with database
 - **Dark Mode** - Beautiful dark theme support
 - **File Upload** - Support for images, PDFs, and DOCX files
 - **Custom Models** - Add your own OpenRouter or Ollama models
@@ -41,13 +43,12 @@
 
 ## 🚀 Quick Start
 
-### Option 1: Web Application (Recommended)
-
-#### Prerequisites
-- Node.js 20+ 
+### Prerequisites
+- Node.js 20+
 - npm, yarn, or pnpm
+- PostgreSQL database (optional - for cloud features like OAuth, chat sharing)
 
-#### Installation
+### Installation
 
 1. **Clone the repository**
 ```bash
@@ -60,19 +61,41 @@ cd multifariousAI
 npm install
 ```
 
-3. **Set up environment variables** (Optional for free models)
-```bash
-cp .env.example .env.local
-```
-
-4. **Run development server**
+3. **Run the development server**
 ```bash
 npm run dev
 ```
 
-5. **Open [http://localhost:3000](http://localhost:3000)**
+4. **Open [http://localhost:3000](http://localhost:3000)**
 
-That's it! Start chatting with free models immediately!
+**That's it!** The app works fully locally without any database. Chat history is stored in browser localStorage.
+
+### Advanced Setup (Optional)
+
+For full features like OAuth login and chat sharing, set up environment variables:
+```bash
+cp .env.example .env.local
+```
+
+**Database Setup:**
+- Install PostgreSQL locally or use a cloud provider (Supabase, Neon, etc.)
+- Create a database named `multifariousai`
+- Update `DATABASE_URL` in `.env.local`
+
+**OAuth Setup:**
+- **GitHub OAuth**: Go to [GitHub Settings > Developer settings > OAuth Apps](https://github.com/settings/applications/new)
+- **Google OAuth**: Go to [Google Cloud Console > APIs & Credentials](https://console.cloud.google.com/apis/credentials)
+- Add your OAuth client IDs and secrets to `.env.local`
+
+**Run database migrations:**
+```bash
+npm run db:setup
+```
+```
+
+7. **Open [http://localhost:3000](http://localhost:3000)**
+
+That's it! Sign up/login and start chatting!
 
 ### Option 2: Docker Desktop
 
@@ -152,10 +175,8 @@ npm run start
 ### Free Models - No Key Required!
 
 The following models work **without any API key**:
-- ✅ DeepSeek R1 (Free)
 - ✅ Llama 3.3 70B (Free)
 - ✅ Qwen 2.5 72B (Free)
-- ✅ Mistral Small 24B (Free)
 - ✅ Gemma 3 27B (Free)
 - ✅ GLM 4.5 Air (Free)
 - ✅ And 20+ more free models!
@@ -286,8 +307,8 @@ docker-compose up --build
 
 ## 🚧 Roadmap
 
-- [ ] **Database Integration** - Supabase/PostgreSQL for cloud sync
-- [ ] **User Authentication** - Login/signup with GitHub/Google
+- [x] **Database Integration** - PostgreSQL with Drizzle ORM
+- [x] **User Authentication** - Better Auth with GitHub/Google OAuth
 - [ ] **Conversation Sharing** - Share chats via public links
 - [ ] **Chat Export** - Export to Markdown, PDF
 - [ ] **Desktop Application** - Electron/Tauri for offline use
