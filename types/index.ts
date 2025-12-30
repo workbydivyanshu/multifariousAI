@@ -10,6 +10,7 @@ export interface AiModel {
   custom?: boolean
   supportsWebSearch?: boolean
   supportsResearch?: boolean
+  supportsReasoning?: boolean
 }
 
 export interface Provider {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Send, Loader2, Settings2, Sparkles, Zap, Globe, BookOpen } from 'lucide-react'
+import { Send, Loader2, Settings2, Sparkles, Zap, Globe, BookOpen, Brain } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -17,6 +17,7 @@ interface ModernChatInputProps {
   onOpenSettings?: () => void
   showWebSearchToggle?: boolean
   showResearchToggle?: boolean
+  showReasoningToggle?: boolean
 }
 
 const MIN_HEIGHT = 56
@@ -31,12 +32,13 @@ export function ModernChatInput({
   onOpenSettings,
   showWebSearchToggle = false,
   showResearchToggle = false,
+  showReasoningToggle = false,
 }: ModernChatInputProps) {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   
-  const { webSearchEnabled, researchEnabled, setWebSearchEnabled, setResearchEnabled } = useChatStore()
+  const { webSearchEnabled, researchEnabled, reasoningEnabled, setWebSearchEnabled, setResearchEnabled, setReasoningEnabled } = useChatStore()
 
   // Auto-resize textarea
   const adjustHeight = useCallback((reset?: boolean) => {
@@ -175,6 +177,25 @@ export function ModernChatInput({
                 >
                   <BookOpen className="w-4 h-4" />
                   <span className="hidden sm:inline text-xs">Research</span>
+                </Button>
+              )}
+              
+              {/* Reasoning Toggle */}
+              {showReasoningToggle && (
+                <Button
+                  variant={reasoningEnabled ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                  className={cn(
+                    "rounded-full h-8 px-3 gap-1.5 transition-all",
+                    reasoningEnabled 
+                      ? "bg-amber-500/90 hover:bg-amber-600 text-white" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Enable reasoning mode for step-by-step thinking"
+                >
+                  <Brain className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs">Think</span>
                 </Button>
               )}
               

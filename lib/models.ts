@@ -186,6 +186,7 @@ export const MODEL_CATALOG: AiModel[] = [
     category: 'text',
     description: 'OpenAI\'s o1 reasoning model',
     context: 128000,
+    supportsReasoning: true,
   },
   {
     id: 'o1-mini',
@@ -196,6 +197,7 @@ export const MODEL_CATALOG: AiModel[] = [
     category: 'text',
     description: 'Fast o1 reasoning model',
     context: 128000,
+    supportsReasoning: true,
   },
 
   // === MISTRAL OFFICIAL ===
@@ -322,6 +324,7 @@ export const MODEL_CATALOG: AiModel[] = [
     category: 'text',
     description: 'Advanced reasoning model',
     context: 128000,
+    supportsReasoning: true,
   },
   {
     id: 'openai-o3-mini',
@@ -332,6 +335,7 @@ export const MODEL_CATALOG: AiModel[] = [
     category: 'text',
     description: 'Fast reasoning model',
     context: 128000,
+    supportsReasoning: true,
   },
 
   // === ANTHROPIC DIRECT API ===
@@ -344,6 +348,7 @@ export const MODEL_CATALOG: AiModel[] = [
     category: 'text',
     description: 'Anthropic\'s most powerful model',
     context: 200000,
+    supportsReasoning: true,
   },
   {
     id: 'anthropic-claude-sonnet-4',
@@ -354,6 +359,7 @@ export const MODEL_CATALOG: AiModel[] = [
     category: 'text',
     description: 'Balanced performance and efficiency',
     context: 200000,
+    supportsReasoning: true,
   },
   {
     id: 'anthropic-claude-3.5-sonnet',
@@ -496,6 +502,7 @@ export const MODEL_CATALOG: AiModel[] = [
     context: 127072,
     supportsWebSearch: true,
     supportsResearch: true,
+    supportsReasoning: true,
   },
   {
     id: 'perplexity-sonar-reasoning-pro',
@@ -508,6 +515,7 @@ export const MODEL_CATALOG: AiModel[] = [
     context: 127072,
     supportsWebSearch: true,
     supportsResearch: true,
+    supportsReasoning: true,
   },
   {
     id: 'perplexity-sonar-deep-research',

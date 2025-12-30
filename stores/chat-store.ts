@@ -13,6 +13,7 @@ interface ChatState {
   isStreaming: boolean
   webSearchEnabled: boolean
   researchEnabled: boolean
+  reasoningEnabled: boolean
   settings: {
     temperature: number
     maxTokens: number
@@ -53,6 +54,7 @@ interface ChatState {
   setStreaming: (isStreaming: boolean) => void
   setWebSearchEnabled: (enabled: boolean) => void
   setResearchEnabled: (enabled: boolean) => void
+  setReasoningEnabled: (enabled: boolean) => void
   setSettings: (settings: Partial<ChatState['settings']>) => void
   addCustomModel: (model: AiModel) => void
   removeCustomModel: (modelId: string) => void
@@ -69,6 +71,7 @@ export const useChatStore = create<ChatState>()(
       isStreaming: false,
       webSearchEnabled: false,
       researchEnabled: false,
+      reasoningEnabled: false,
       isLoading: false,
       projects: [],
       currentProjectId: null,
@@ -201,6 +204,8 @@ export const useChatStore = create<ChatState>()(
       setWebSearchEnabled: (enabled) => set({ webSearchEnabled: enabled }),
       
       setResearchEnabled: (enabled) => set({ researchEnabled: enabled }),
+      
+      setReasoningEnabled: (enabled) => set({ reasoningEnabled: enabled }),
 
       setProviderKey: (provider, key) =>
         set((state) => ({

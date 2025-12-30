@@ -14,7 +14,10 @@ import {
   Settings2,
   ChevronLeft,
   ChevronRight,
-  GripVertical
+  GripVertical,
+  Brain,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import {
   ResizableHandle,
@@ -29,7 +32,7 @@ import { AISlide } from '@/types'
 import { getModelById } from '@/lib/models'
 import { useSlidesStore } from '@/stores/slides-store'
 
-const SLIDES_PER_PAGE = 5
+const SLIDES_PER_PAGE = 4
 
 interface ConversationPanelProps {
   slides: AISlide[]
@@ -469,14 +472,55 @@ function ResponseContent({ response, expanded, onRetry }: ResponseContentProps) 
 
   // Content state
   if (response?.content) {
+    // Parse thinking/reasoning content if present
+    // Common patterns: <think>...</think>, <thinking>...</thinking>, [thinking]...[/thinking]
+    const thinkingMatch = response.content.match(/<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/i) ||
+                          response.content.match(/\[think(?:ing)?\]([\s\S]*?)\[\/think(?:ing)?\]/i)
+    
+    const thinkingContent = thinkingMatch ? thinkingMatch[1].trim() : null
+    const mainContent = thinkingMatch 
+      ? response.content.replace(thinkingMatch[0], '').trim() 
+      : response.content
+    
+    const [thinkingExpanded, setThinkingExpanded] = useState(false)
+
     return (
       <div className="space-y-2 flex flex-col h-full">
+        {/* Thinking/Reasoning Box */}
+        {thinkingContent && (
+          <div className="rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-orange-500/5">
+            <button
+              onClick={() => setThinkingExpanded(!thinkingExpanded)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-amber-500/10 transition-colors rounded-t-lg"
+            >
+              <Brain className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Thinking Process</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {thinkingContent.length} chars
+              </span>
+              {thinkingExpanded ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
+            {thinkingExpanded && (
+              <div className="px-3 pb-3 border-t border-amber-500/20">
+                <div className="text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-words mt-2 max-h-48 overflow-y-auto">
+                  {thinkingContent}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Main Response */}
         <div className={cn(
           'prose prose-sm dark:prose-invert max-w-none flex-1 overflow-y-auto',
           expanded && 'prose-lg'
         )}>
           <div className="text-xs leading-relaxed text-foreground whitespace-pre-wrap break-words">
-            {response.content}
+            {mainContent}
           </div>
         </div>
         <div className="flex justify-end gap-1 pt-2 border-t border-border/30 mt-auto">

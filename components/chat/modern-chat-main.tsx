@@ -433,6 +433,11 @@ export function ModernChatMain() {
     const model = getModelById(slide.modelId || '')
     return model?.supportsResearch
   })
+  
+  const hasReasoningModel = apiSlides.some(slide => {
+    const model = getModelById(slide.modelId || '')
+    return model?.supportsReasoning
+  })
 
   const handleSessionChange = (sessionId: string) => {
     setActiveSessionIdState(sessionId)
@@ -649,6 +654,7 @@ export function ModernChatMain() {
               onOpenSettings={() => setShowModelSelector(true)}
               showWebSearchToggle={hasWebSearchModel}
               showResearchToggle={hasResearchModel}
+              showReasoningToggle={hasReasoningModel}
             />
           </div>
 
