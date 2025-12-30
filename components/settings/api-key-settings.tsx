@@ -298,63 +298,63 @@ export function ApiKeySettings() {
           <span className="hidden sm:inline">API Keys</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5" />
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Key className="w-4 h-4 sm:w-5 sm:h-5" />
             API Key Settings
           </DialogTitle>
-          <DialogDescription>
-            Add your API keys to access premium models, or use free models without any keys.
+          <DialogDescription className="text-xs sm:text-sm">
+            Add your API keys to access premium models.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="openrouter" className="mt-4">
-          <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1">
+        <Tabs defaultValue="openrouter" className="mt-3 sm:mt-4">
+          <TabsList className="flex flex-wrap justify-start gap-1 h-auto p-1 w-full">
             {PROVIDERS.map(provider => (
               <TabsTrigger 
                 key={provider.id} 
                 value={provider.id}
-                className="relative text-xs px-2 py-1.5"
+                className="relative text-[10px] sm:text-xs px-1.5 sm:px-2 py-1 sm:py-1.5"
               >
-                {provider.name}
+                <span className="hidden sm:inline">{provider.name}</span>
+                <span className="sm:hidden">{provider.name.split(' ')[0]}</span>
                 {hasKey(provider) && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full" />
                 )}
               </TabsTrigger>
             ))}
           </TabsList>
 
           {PROVIDERS.map(provider => (
-            <TabsContent key={provider.id} value={provider.id} className="space-y-4 mt-4">
+            <TabsContent key={provider.id} value={provider.id} className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor={provider.keyName}>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor={provider.keyName} className="text-sm">
                     {provider.id === 'ollama' ? 'Server URL' : 'API Key'}
                   </Label>
                   {provider.hasFreeModels && (
-                    <Badge variant="secondary" className="text-xs">
-                      Free models available
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                      Free
                     </Badge>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">{provider.description}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{provider.description}</p>
                 
                 {/* Special prompt for OpenRouter */}
                 {provider.id === 'openrouter' && !hasKey(provider) && (
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-sm font-medium mb-2">🎉 Start Free in 30 Seconds!</p>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      OpenRouter gives you FREE credits to try premium models like GPT-4, Claude, and DeepSeek. 
-                      Plus, many models are 100% free forever.
+                  <div className="p-2 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <p className="text-xs sm:text-sm font-medium mb-1 sm:mb-2">🎉 Start Free!</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-2 sm:mb-3">
+                      OpenRouter gives FREE credits for GPT-4, Claude, and more.
                     </p>
                     <Button
                       size="sm"
-                      className="w-full gap-2"
+                      className="w-full gap-2 text-xs sm:text-sm h-8 sm:h-9"
                       onClick={() => window.open(provider.helpUrl, '_blank')}
                     >
-                      <ExternalLink className="w-4 h-4" />
-                      Get Free OpenRouter Key
+                      <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Get Free Key
                     </Button>
                   </div>
                 )}
@@ -365,13 +365,13 @@ export function ApiKeySettings() {
                       placeholder={provider.placeholder}
                       value={getKeyValue(provider)}
                       onChange={(e) => handleKeyChange(provider.keyName, e.target.value)}
-                      className="pr-10"
+                      className="pr-10 text-sm h-9"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
+                      className="absolute right-0 top-0 h-full px-2 sm:px-3"
                       onClick={() => setShowKeys(prev => ({ ...prev, [provider.id]: !prev[provider.id] }))}
                     >
                       {showKeys[provider.id] ? (
@@ -383,11 +383,12 @@ export function ApiKeySettings() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button 
                     size="sm" 
                     onClick={() => handleSaveKey(provider.keyName)}
                     disabled={!getKeyValue(provider)}
+                    className="text-xs sm:text-sm h-8"
                   >
                     Save
                   </Button>
@@ -396,6 +397,7 @@ export function ApiKeySettings() {
                     variant="outline"
                     onClick={() => handleTestKey(provider)}
                     disabled={testStatus[provider.id] === 'testing'}
+                    className="text-xs sm:text-sm h-8"
                   >
                     {testStatus[provider.id] === 'testing' ? 'Testing...' : 'Test'}
                   </Button>

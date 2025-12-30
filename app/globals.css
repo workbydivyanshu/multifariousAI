@@ -56,4 +56,57 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Mobile-specific fixes */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Mobile responsive utilities */
+@layer utilities {
+  /* Safe area padding for notched devices */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Mobile touch improvements */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  /* Text size clamp for mobile readability */
+  .text-clamp-xs {
+    font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+  }
+  .text-clamp-sm {
+    font-size: clamp(0.875rem, 3vw, 1rem);
+  }
+  .text-clamp-base {
+    font-size: clamp(1rem, 3.5vw, 1.125rem);
+  }
+  .text-clamp-lg {
+    font-size: clamp(1.125rem, 4vw, 1.5rem);
+  }
+  .text-clamp-xl {
+    font-size: clamp(1.5rem, 5vw, 2.25rem);
+  }
+  .text-clamp-2xl {
+    font-size: clamp(1.75rem, 6vw, 3rem);
+  }
+  .text-clamp-3xl {
+    font-size: clamp(2rem, 7vw, 3.75rem);
+  }
 }

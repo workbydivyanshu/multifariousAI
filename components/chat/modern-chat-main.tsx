@@ -542,26 +542,26 @@ export function ModernChatMain() {
       {/* Main Content */}
       <div className="flex flex-col flex-1">
         {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
-          <div className="flex items-center gap-4">
+        <header className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden"
+              className="h-9 w-9"
             >
               <Menu className="w-5 h-5" />
             </Button>
             <motion.div
-              className="flex items-center gap-3"
+              className="flex items-center gap-2 sm:gap-3"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-primary/25">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-primary/25">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div>
-                <h1 className="font-bold text-lg tracking-tight">MultifariousAI</h1>
+              <div className="hidden sm:block">
+                <h1 className="font-bold text-base sm:text-lg tracking-tight">MultifariousAI</h1>
                 <p className="text-xs text-muted-foreground">
                   {mounted 
                     ? `${modelCount} model${modelCount !== 1 ? 's' : ''} active`
@@ -572,12 +572,12 @@ export function ModernChatMain() {
             </motion.div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowModelSelector(true)}
-              className="gap-2"
+              className="gap-1 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Add Models</span>
@@ -592,11 +592,11 @@ export function ModernChatMain() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mx-6 mt-4 p-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-center gap-4"
+            className="mx-3 sm:mx-6 mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-center gap-3 sm:gap-4\"
           >
             <div className="flex-1 text-center sm:text-left">
-              <p className="font-semibold text-primary">🚀 Get Started in 30 Seconds</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-semibold text-primary text-sm sm:text-base\">🚀 Get Started in 30 Seconds</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Add your API key to unlock 50+ AI models. OpenRouter offers free credits to get started!
               </p>
             </div>
@@ -733,7 +733,7 @@ export function ModernChatMain() {
         </AnimatePresence>
 
         {/* Input Area */}
-        <div className="border-t bg-background/80 backdrop-blur-sm py-4">
+        <div className="border-t bg-background/80 backdrop-blur-sm py-2 sm:py-4 safe-area-inset-bottom\">
           <ModernChatInput
               onSend={handleSendMessage}
               disabled={!mounted || isQuerying}
@@ -792,10 +792,10 @@ function WelcomeScreen({ modelCount, onAddModels }: WelcomeScreenProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
+      className="flex flex-col items-center justify-center min-h-[50vh] sm:min-h-[60vh] text-center px-3 sm:px-4"
     >
       <motion.div
-        className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary via-purple-500 to-pink-500 flex items-center justify-center mb-6 shadow-2xl shadow-primary/25"
+        className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary via-purple-500 to-pink-500 flex items-center justify-center mb-4 sm:mb-6 shadow-2xl shadow-primary/25"
         animate={{ 
           rotate: [0, 5, -5, 0],
           scale: [1, 1.05, 1]
@@ -806,34 +806,34 @@ function WelcomeScreen({ modelCount, onAddModels }: WelcomeScreenProps) {
           ease: "easeInOut"
         }}
       >
-        <Sparkles className="w-10 h-10 text-white" />
+        <Sparkles className="w-7 h-7 sm:w-10 sm:h-10 text-white" />
       </motion.div>
 
-      <h2 className="text-3xl font-bold mb-3">🔑 Add API Keys to Get Started</h2>
-      <p className="text-muted-foreground max-w-md mb-8">
+      <h2 className="text-xl sm:text-3xl font-bold mb-2 sm:mb-3">🔑 Add API Keys to Get Started</h2>
+      <p className="text-muted-foreground text-sm sm:text-base max-w-md mb-6 sm:mb-8">
         {modelCount === 0 
-          ? 'Add your API keys from providers like OpenRouter, OpenAI, or Anthropic to unlock AI models.' 
-          : `You have ${modelCount} model${modelCount !== 1 ? 's' : ''} ready. Add more API keys to unlock more models.`
+          ? 'Add your API keys to unlock AI models.' 
+          : `${modelCount} model${modelCount !== 1 ? 's' : ''} ready. Add more API keys for more models.`
         }
       </p>
 
-      <div className="grid sm:grid-cols-3 gap-4 max-w-3xl mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-3xl mb-6 sm:mb-8 w-full">
         {features.map((feature, index) => (
           <motion.div
             key={feature.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 + index * 0.1 }}
-            className="p-4 rounded-xl border bg-card/50 text-left hover:shadow-lg transition-shadow"
+            className="p-3 sm:p-4 rounded-xl border bg-card/50 text-left hover:shadow-lg transition-shadow"
           >
             <div className={cn(
-              'w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center mb-3',
+              'w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br flex items-center justify-center mb-2 sm:mb-3',
               feature.color
             )}>
-              <feature.icon className="w-5 h-5 text-white" />
+              <feature.icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <h3 className="font-semibold mb-1">{feature.title}</h3>
-            <p className="text-sm text-muted-foreground">{feature.description}</p>
+            <h3 className="font-semibold text-sm sm:text-base mb-0.5 sm:mb-1">{feature.title}</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">{feature.description}</p>
           </motion.div>
         ))}
       </div>
@@ -841,9 +841,9 @@ function WelcomeScreen({ modelCount, onAddModels }: WelcomeScreenProps) {
       <Button
         size="lg"
         onClick={onAddModels}
-        className="gap-2 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-500"
+        className="gap-2 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-500 w-full sm:w-auto h-11 sm:h-12 text-sm sm:text-base"
       >
-        <Sparkles className="w-5 h-5" />
+        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
         {modelCount === 0 ? 'Configure API Keys' : 'Add More Models'}
       </Button>
     </motion.div>

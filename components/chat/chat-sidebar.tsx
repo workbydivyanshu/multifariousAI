@@ -82,25 +82,35 @@ export function ChatSidebar({
   }
 
   return (
-    <aside
-      className={cn(
-        'flex flex-col h-full border-r bg-background transition-all duration-300',
-        open ? 'w-72' : 'w-0 hidden md:w-0'
+    <>
+      {/* Mobile Overlay Backdrop */}
+      {open && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => onOpenChange(false)}
+        />
       )}
-    >
+      <aside
+        className={cn(
+          'flex flex-col h-full border-r bg-background transition-all duration-300 z-50',
+          // Mobile: fixed overlay drawer
+          'fixed lg:relative inset-y-0 left-0',
+          open ? 'w-72 translate-x-0' : 'w-72 -translate-x-full lg:w-0 lg:translate-x-0 lg:hidden'
+        )}
+      >
       {/* Header */}
-      <div className="flex items-center justify-between border-b p-4">
-        <h2 className="font-semibold">Chats</h2>
-        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="md:hidden h-8 w-8">
+      <div className="flex items-center justify-between border-b p-3 sm:p-4">
+        <h2 className="font-semibold text-sm sm:text-base">Chats</h2>
+        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-8">
           <X className="h-4 w-4" />
         </Button>
       </div>
 
       {/* New Chat Button */}
-      <div className="p-3 border-b">
+      <div className="p-2 sm:p-3 border-b">
         <Button
           onClick={handleNewChat}
-          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
         >
           <Plus className="w-4 h-4" />
           New Chat
@@ -122,9 +132,15 @@ export function ChatSidebar({
             {sessions.map((session, index) => (
               <motion.div
                 key={session.id}
-                onClick={() => handleSelectSession(session.id)}
+                onClick={() => {
+                  handleSelectSession(session.id)
+                  // Close sidebar on mobile after selection
+                  if (window.innerWidth < 1024) {
+                    onOpenChange(false)
+                  }
+                }}
                 className={cn(
-                  'w-full group relative rounded-lg p-3 text-left transition-all duration-200 text-sm cursor-pointer',
+                  'w-full group relative rounded-lg p-2.5 sm:p-3 text-left transition-all duration-200 text-sm cursor-pointer',
                   'hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
                   activeSessionId === session.id
                     ? 'bg-primary/10 border border-primary/30'
@@ -151,7 +167,7 @@ export function ChatSidebar({
                 <button
                   onClick={(e) => handleDeleteSession(session.id, e)}
                   className={cn(
-                    'absolute right-3 top-3 p-1.5 rounded-md opacity-0 group-hover:opacity-100',
+                    'absolute right-2 sm:right-3 top-2 sm:top-3 p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
                     'hover:bg-destructive/10 text-destructive transition-all hover:scale-110 active:scale-95'
                   )}
                 >
@@ -163,5 +179,6 @@ export function ChatSidebar({
         )}
       </ScrollArea>
     </aside>
+    </>
   )
 }

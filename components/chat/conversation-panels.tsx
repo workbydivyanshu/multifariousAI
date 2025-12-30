@@ -33,6 +33,7 @@ import { getModelById } from '@/lib/models'
 import { useSlidesStore } from '@/stores/slides-store'
 
 const SLIDES_PER_PAGE = 4
+const MOBILE_SLIDES_PER_PAGE = 1
 
 interface ConversationPanelProps {
   slides: AISlide[]
@@ -54,11 +55,16 @@ export function ConversationPanels({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const { reorderSlides } = useSlidesStore()
 
-  // Handle hydration
+  // Handle hydration and mobile detection
   useEffect(() => {
     setMounted(true)
+    const checkMobile = () => setIsMobile(window.innerWidth < 640)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   // Sort slides: enabled first, then disabled; within each group sort by response quality
@@ -93,10 +99,11 @@ export function ConversationPanels({
     })
   }, [slides, responses, mounted])
 
-  // Pagination
-  const totalPages = Math.ceil(sortedSlides.length / SLIDES_PER_PAGE)
-  const startIndex = currentPage * SLIDES_PER_PAGE
-  const visibleSlides = sortedSlides.slice(startIndex, startIndex + SLIDES_PER_PAGE)
+  // Pagination - show fewer panels on mobile
+  const slidesPerPage = isMobile ? MOBILE_SLIDES_PER_PAGE : SLIDES_PER_PAGE
+  const totalPages = Math.ceil(sortedSlides.length / slidesPerPage)
+  const startIndex = currentPage * slidesPerPage
+  const visibleSlides = sortedSlides.slice(startIndex, startIndex + slidesPerPage)
 
   // Count errors for indicator
   const errorCount = sortedSlides.filter(s => responses[s.id]?.error).length
@@ -231,11 +238,11 @@ export function ConversationPanels({
   }, null)
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden min-h-[350px]">
+    <div className="h-full w-full flex flex-col overflow-hidden min-h-[250px] sm:min-h-[350px]">
       {/* Status bar and slider */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30">
+      <div className="flex flex-wrap items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border-b bg-muted/30">
         {/* Status indicators */}
-        <div className="flex items-center gap-2 text-xs shrink-0">
+        <div className="flex items-center gap-2 text-[10px] sm:text-xs shrink-0">
           <span className="text-green-600 font-medium">✓ {validCount}</span>
           {errorCount > 0 && (
             <span className="text-destructive">✗ {errorCount}</span>
@@ -244,15 +251,15 @@ export function ConversationPanels({
 
         {/* Horizontal Slider - only show if multiple pages */}
         {totalPages > 1 && (
-          <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
+          <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-[140px] sm:min-w-[200px] max-w-sm">
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 shrink-0"
+              className="h-5 w-5 sm:h-6 sm:w-6 shrink-0"
               onClick={goToPrevPage}
               disabled={currentPage === 0}
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
             
             <input
@@ -261,7 +268,7 @@ export function ConversationPanels({
               max={Math.max(0, totalPages - 1)}
               value={currentPage}
               onChange={handleSliderChange}
-              className="flex-1 h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+              className="flex-1 h-1 sm:h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
               style={{
                 background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${sliderProgress}%, hsl(var(--muted)) ${sliderProgress}%, hsl(var(--muted)) 100%)`
               }}
@@ -270,19 +277,19 @@ export function ConversationPanels({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 shrink-0"
+              className="h-5 w-5 sm:h-6 sm:w-6 shrink-0"
               onClick={goToNextPage}
               disabled={currentPage >= totalPages - 1}
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
           </div>
         )}
 
         {/* Page info */}
-        <span className="text-xs text-muted-foreground whitespace-nowrap ml-auto">
+        <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap ml-auto">
           {totalPages > 1 
-            ? `${startIndex + 1}-${Math.min(startIndex + SLIDES_PER_PAGE, sortedSlides.length)} of ${sortedSlides.length}` 
+            ? `${startIndex + 1}-${Math.min(startIndex + slidesPerPage, sortedSlides.length)} of ${sortedSlides.length}` 
             : `${sortedSlides.length} models`
           }
         </span>
@@ -323,25 +330,25 @@ export function ConversationPanels({
                 >
                   {/* Panel Header */}
                   <div className={cn(
-                    "flex items-center justify-between p-2 border-b bg-muted/30 gap-1 cursor-grab active:cursor-grabbing",
+                    "flex items-center justify-between p-1.5 sm:p-2 border-b bg-muted/30 gap-1 cursor-grab active:cursor-grabbing",
                     isBest && "bg-primary/10 border-primary/20"
                   )}>
-                    {/* Drag handle */}
-                    <GripVertical className="w-3 h-3 text-muted-foreground shrink-0" />
+                    {/* Drag handle - hidden on mobile */}
+                    <GripVertical className="w-3 h-3 text-muted-foreground shrink-0 hidden sm:block" />
 
                     <div className="flex items-center gap-1 min-w-0 flex-1">
                       <ModelAvatar provider={model?.provider || 'unknown'} size="sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1">
-                          <h4 className="font-semibold text-xs truncate">{slide.name}</h4>
+                          <h4 className="font-semibold text-[10px] sm:text-xs truncate">{slide.name}</h4>
                           {isBest && (
-                            <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 text-[8px] px-1 py-0 whitespace-nowrap">
+                            <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 text-[7px] sm:text-[8px] px-1 py-0 whitespace-nowrap">
                               ✨ Best
                             </Badge>
                           )}
                         </div>
                         {model?.free && (
-                          <Badge variant="secondary" className="text-[8px] px-1 py-0 bg-green-500/10 text-green-600 border-green-500/20 mt-0.5">
+                          <Badge variant="secondary" className="text-[7px] sm:text-[8px] px-1 py-0 bg-green-500/10 text-green-600 border-green-500/20 mt-0.5">
                             Free
                           </Badge>
                         )}
@@ -350,7 +357,7 @@ export function ConversationPanels({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 shrink-0"
+                      className="h-5 w-5 sm:h-6 sm:w-6 shrink-0"
                       onClick={(e) => {
                         e.stopPropagation()
                         setExpandedSlideId(slide.id)

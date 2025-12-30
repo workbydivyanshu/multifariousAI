@@ -79,10 +79,10 @@ export function ModernChatInput({
   const canSubmit = value.trim() && !disabled && !isLoading
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4">
       <motion.div
         className={cn(
-          'relative rounded-2xl border-2 bg-background/80 backdrop-blur-xl shadow-lg transition-all duration-300',
+          'relative rounded-xl sm:rounded-2xl border-2 bg-background/80 backdrop-blur-xl shadow-lg transition-all duration-300',
           isFocused 
             ? 'border-primary/50 shadow-primary/20 shadow-xl' 
             : 'border-border/50 hover:border-border',
@@ -107,7 +107,7 @@ export function ModernChatInput({
           )}
         </AnimatePresence>
 
-        <div className="p-3">
+        <div className="p-2 sm:p-3">
           {/* Textarea */}
           <Textarea
             ref={textareaRef}
@@ -119,7 +119,7 @@ export function ModernChatInput({
             placeholder={placeholder}
             disabled={disabled}
             className={cn(
-              'resize-none border-0 bg-transparent p-2 text-base shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/60',
+              'resize-none border-0 bg-transparent p-1.5 sm:p-2 text-sm sm:text-base shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/60',
               'scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent'
             )}
             style={{ 
@@ -129,18 +129,18 @@ export function ModernChatInput({
           />
 
           {/* Actions bar */}
-          <div className="flex items-center justify-between pt-2 border-t border-border/30 mt-2">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between pt-2 border-t border-border/30 mt-2 gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap overflow-x-auto scrollbar-hide">
               {modelCount > 0 && (
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium"
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium whitespace-nowrap"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>{modelCount} model{modelCount !== 1 ? 's' : ''}</span>
+                  <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span>{modelCount}</span>
                 </motion.div>
-              )}
+              )}}
               
               {/* Web Search Toggle */}
               {showWebSearchToggle && (
@@ -149,14 +149,14 @@ export function ModernChatInput({
                   size="sm"
                   onClick={() => setWebSearchEnabled(!webSearchEnabled)}
                   className={cn(
-                    "rounded-full h-8 px-3 gap-1.5 transition-all",
+                    "rounded-full h-7 sm:h-8 px-2 sm:px-3 gap-1 sm:gap-1.5 transition-all",
                     webSearchEnabled 
                       ? "bg-blue-500/90 hover:bg-blue-600 text-white" 
                       : "text-muted-foreground hover:text-foreground"
                   )}
                   title="Enable web search for real-time information"
                 >
-                  <Globe className="w-4 h-4" />
+                  <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline text-xs">Web</span>
                 </Button>
               )}
@@ -168,14 +168,14 @@ export function ModernChatInput({
                   size="sm"
                   onClick={() => setResearchEnabled(!researchEnabled)}
                   className={cn(
-                    "rounded-full h-8 px-3 gap-1.5 transition-all",
+                    "rounded-full h-7 sm:h-8 px-2 sm:px-3 gap-1 sm:gap-1.5 transition-all",
                     researchEnabled 
                       ? "bg-purple-500/90 hover:bg-purple-600 text-white" 
                       : "text-muted-foreground hover:text-foreground"
                   )}
                   title="Enable deep research mode for comprehensive analysis"
                 >
-                  <BookOpen className="w-4 h-4" />
+                  <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline text-xs">Research</span>
                 </Button>
               )}
@@ -187,14 +187,14 @@ export function ModernChatInput({
                   size="sm"
                   onClick={() => setReasoningEnabled(!reasoningEnabled)}
                   className={cn(
-                    "rounded-full h-8 px-3 gap-1.5 transition-all",
+                    "rounded-full h-7 sm:h-8 px-2 sm:px-3 gap-1 sm:gap-1.5 transition-all",
                     reasoningEnabled 
                       ? "bg-amber-500/90 hover:bg-amber-600 text-white" 
                       : "text-muted-foreground hover:text-foreground"
                   )}
                   title="Enable reasoning mode for step-by-step thinking"
                 >
-                  <Brain className="w-4 h-4" />
+                  <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline text-xs">Think</span>
                 </Button>
               )}
@@ -204,21 +204,21 @@ export function ModernChatInput({
                   variant="ghost"
                   size="sm"
                   onClick={onOpenSettings}
-                  className="rounded-full h-8 px-3 text-muted-foreground hover:text-foreground"
+                  className="rounded-full h-7 sm:h-8 px-2 sm:px-3 text-muted-foreground hover:text-foreground"
                 >
-                  <Settings2 className="w-4 h-4 mr-1.5" />
-                  <span className="hidden sm:inline">Settings</span>
+                  <Settings2 className="w-4 h-4" />
+                  <span className="hidden md:inline ml-1.5">Settings</span>
                 </Button>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               {/* Character count */}
               {value.length > 0 && (
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-xs text-muted-foreground"
+                  className="text-[10px] sm:text-xs text-muted-foreground"
                 >
                   {value.length}
                 </motion.span>
@@ -234,7 +234,7 @@ export function ModernChatInput({
                   disabled={!canSubmit}
                   size="sm"
                   className={cn(
-                    'rounded-full h-10 px-4 gap-2 transition-all duration-300',
+                    'rounded-full h-9 sm:h-10 px-3 sm:px-4 gap-1.5 sm:gap-2 transition-all duration-300',
                     canSubmit
                       ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-500 text-white shadow-lg shadow-primary/25'
                       : 'bg-muted text-muted-foreground'
@@ -243,12 +243,12 @@ export function ModernChatInput({
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Sending...</span>
+                      <span className="hidden sm:inline">Sending...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      <span>Ask AI</span>
+                      <span className="hidden sm:inline">Ask AI</span>
                       <Send className="w-4 h-4" />
                     </>
                   )}
@@ -259,8 +259,8 @@ export function ModernChatInput({
         </div>
       </motion.div>
 
-      {/* Helper text */}
-      <p className="text-center text-xs text-muted-foreground mt-3">
+      {/* Helper text - hidden on mobile */}
+      <p className="hidden sm:block text-center text-xs text-muted-foreground mt-3">
         Press <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Shift+Enter</kbd> for new line
       </p>
     </div>
