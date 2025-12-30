@@ -2,6 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  // Disable dev indicators for all users (cleaner UI)
+  devIndicators: false,
   images: {
     remotePatterns: [
       {
