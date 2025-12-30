@@ -41,12 +41,35 @@
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (For Everyone!)
+
+### 🖥️ Windows Users (Easiest!)
+
+1. **Download Node.js** from [nodejs.org](https://nodejs.org/) and install it
+2. **Download this project**: Click the green "Code" button → "Download ZIP" → Extract it
+3. **Double-click `START.bat`** in the extracted folder
+4. **That's it!** The app opens in your browser automatically
+
+### 🍎 Mac/Linux Users
+
+1. **Install Node.js**: 
+   - Mac: `brew install node` or download from [nodejs.org](https://nodejs.org/)
+   - Linux: `sudo apt install nodejs npm`
+2. **Download this project** and extract it
+3. **Open Terminal** in the project folder and run:
+   ```bash
+   chmod +x START.sh && ./START.sh
+   ```
+4. **Done!** Opens at http://localhost:3000
+
+---
+
+## 👨‍💻 For Developers
 
 ### Prerequisites
 - Node.js 20+
 - npm, yarn, or pnpm
-- PostgreSQL database (optional - for cloud features like OAuth, chat sharing)
+- PostgreSQL database (optional - for OAuth, chat sharing)
 
 ### Installation
 
