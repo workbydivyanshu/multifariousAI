@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, MessageSquare, ChevronRight, X } from 'lucide-react'
+import { Plus, Trash2, MessageSquare, ChevronRight, X, Pencil, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { 
   getAllChatSessions, 
   createChatSession, 
   deleteChatSession, 
+  updateChatSession,
   getActiveSessionId,
   setActiveSession 
 } from '@/lib/chat-sessions'
@@ -32,12 +34,23 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [mounted, setMounted] = useState(false)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
+  const editInputRef = useRef<HTMLInputElement>(null)
 
   // Load sessions only on client side to avoid hydration mismatch
   useEffect(() => {
     setMounted(true)
     setSessions(getAllChatSessions())
   }, [])
+
+  // Focus the input when editing starts
+  useEffect(() => {
+    if (editingSessionId && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [editingSessionId])
 
   const handleNewChat = () => {
     const newSession = createChatSession()
@@ -57,12 +70,45 @@ export function ChatSidebar({
     const updated = sessions.filter(s => s.id !== sessionId)
     setSessions(updated)
     
+    // If we deleted the active session, switch to another or set to null
     if (activeSessionId === sessionId) {
       if (updated.length > 0) {
         handleSelectSession(updated[0].id)
       } else {
-        handleNewChat()
+        // No sessions left - set active to null, don't auto-create
+        setActiveSession(null)
       }
+    }
+  }
+
+  const handleStartRename = (session: ChatSession, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingSessionId(session.id)
+    setEditingTitle(session.title)
+  }
+
+  const handleSaveRename = (sessionId: string) => {
+    if (editingTitle.trim()) {
+      const updated = updateChatSession(sessionId, { title: editingTitle.trim() })
+      if (updated) {
+        setSessions(sessions.map(s => s.id === sessionId ? updated : s))
+      }
+    }
+    setEditingSessionId(null)
+    setEditingTitle('')
+  }
+
+  const handleCancelRename = () => {
+    setEditingSessionId(null)
+    setEditingTitle('')
+  }
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent, sessionId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveRename(sessionId)
+    } else if (e.key === 'Escape') {
+      handleCancelRename()
     }
   }
 
@@ -154,25 +200,63 @@ export function ChatSidebar({
                 <div className="flex items-start gap-2">
                   <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {session.title}
-                    </p>
+                    {editingSessionId === session.id ? (
+                      <Input
+                        ref={editInputRef}
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onKeyDown={(e) => handleRenameKeyDown(e, session.id)}
+                        onBlur={handleCancelRename}
+                        className="h-6 text-sm font-medium px-1 py-0"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <p className="text-sm font-medium truncate">
+                        {session.title}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       {formatDate(session.updatedAt)}
                     </p>
                   </div>
                 </div>
 
-                {/* Delete Button */}
-                <button
-                  onClick={(e) => handleDeleteSession(session.id, e)}
-                  className={cn(
-                    'absolute right-2 sm:right-3 top-2 sm:top-3 p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
-                    'hover:bg-destructive/10 text-destructive transition-all hover:scale-110 active:scale-95'
+                {/* Action Buttons */}
+                <div className="absolute right-2 sm:right-3 top-2 sm:top-3 flex gap-1">
+                  {editingSessionId === session.id ? (
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        handleSaveRename(session.id)
+                      }}
+                      className={cn(
+                        'p-1.5 rounded-md',
+                        'hover:bg-primary/10 text-primary transition-all hover:scale-110 active:scale-95'
+                      )}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => handleStartRename(session, e)}
+                      className={cn(
+                        'p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
+                        'hover:bg-primary/10 text-primary transition-all hover:scale-110 active:scale-95'
+                      )}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                  <button
+                    onClick={(e) => handleDeleteSession(session.id, e)}
+                    className={cn(
+                      'p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
+                      'hover:bg-destructive/10 text-destructive transition-all hover:scale-110 active:scale-95'
+                    )}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </motion.div>
             ))}
           </div>
