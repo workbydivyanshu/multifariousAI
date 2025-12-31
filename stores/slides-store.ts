@@ -28,12 +28,14 @@ interface SlidesState {
   // Slide management
   addSlide: (slide: Omit<AISlide, 'id' | 'order'>) => void
   removeSlide: (id: string) => void
+  removeSlidesBatch: (ids: string[]) => void
   updateSlide: (id: string, updates: Partial<AISlide>) => void
   toggleSlide: (id: string) => void
   reorderSlides: (fromIndex: number, toIndex: number) => void
   
   // Quick add helpers
   addApiSlide: (modelId: string, apiKey?: string, modelData?: any) => void
+  addApiSlidesBatch: (models: { modelId: string; modelData?: any }[]) => void
   addAllModelsForProvider: (provider: string) => void
   
   // Error tracking
@@ -95,6 +97,15 @@ export const useSlidesStore = create<SlidesState>()(
         }))
       },
 
+      removeSlidesBatch: (ids) => {
+        const idsSet = new Set(ids)
+        set((state) => ({
+          slides: state.slides
+            .filter((s) => !idsSet.has(s.id))
+            .map((s, idx) => ({ ...s, order: idx }))
+        }))
+      },
+
       updateSlide: (id, updates) => {
         set((state) => ({
           slides: state.slides.map((s) =>
@@ -134,6 +145,34 @@ export const useSlidesStore = create<SlidesState>()(
           modelId: model.id,
           provider: model.provider,
           apiKey,
+        })
+      },
+
+      addApiSlidesBatch: (models) => {
+        set((state) => {
+          const currentSlides = state.slides
+          const existingModelIds = new Set(currentSlides.map(s => s.modelId))
+          const remainingSlots = CONSTANTS.MAX_SLIDES - currentSlides.length
+          
+          // Filter out already-added models and limit to remaining slots
+          const modelsToAdd = models
+            .filter(m => m.modelData && !existingModelIds.has(m.modelId))
+            .slice(0, remainingSlots)
+          
+          // Create new slides for all models at once
+          const newSlides: AISlide[] = modelsToAdd.map((m, idx) => ({
+            id: `slide-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
+            type: 'api' as const,
+            name: m.modelData.label,
+            enabled: true,
+            modelId: m.modelId,
+            provider: m.modelData.provider,
+            order: currentSlides.length + idx,
+          }))
+          
+          return {
+            slides: [...currentSlides, ...newSlides]
+          }
         })
       },
 

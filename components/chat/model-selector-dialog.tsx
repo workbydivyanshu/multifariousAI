@@ -37,7 +37,7 @@ const MAX_MODELS = 1000
 
 export function ModelSelectorDialog({ open, onOpenChange }: ModelSelectorDialogProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const { slides, addApiSlide, removeSlide, getEnabledSlides } = useSlidesStore()
+  const { slides, addApiSlide, addApiSlidesBatch, removeSlide, removeSlidesBatch, getEnabledSlides } = useSlidesStore()
   const { providerKeys, fetchedModels } = useChatStore()
 
   const enabledSlides = getEnabledSlides().filter(s => s.type === 'api')
@@ -83,19 +83,19 @@ export function ModelSelectorDialog({ open, onOpenChange }: ModelSelectorDialogP
   const isModelSelected = (modelId: string) => selectedModelIds.includes(modelId)
 
   const handleAddAll = () => {
-    // Add all available models that aren't already selected
-    availableModels.forEach(model => {
-      if (!isModelSelected(model.id) && selectedModelIds.length < MAX_MODELS) {
-        addApiSlide(model.id, undefined, model)
-      }
-    })
+    // Get models that aren't already selected
+    const modelsToAdd = availableModels
+      .filter(model => !isModelSelected(model.id))
+      .map(model => ({ modelId: model.id, modelData: model }))
+    
+    // Use batch add for atomic operation
+    addApiSlidesBatch(modelsToAdd)
   }
 
   const handleRemoveAll = () => {
-    // Remove all selected slides
-    enabledSlides.forEach(slide => {
-      removeSlide(slide.id)
-    })
+    // Remove all selected slides in batch
+    const slideIds = enabledSlides.map(slide => slide.id)
+    removeSlidesBatch(slideIds)
   }
 
   return (
