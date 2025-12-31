@@ -256,6 +256,7 @@ export const useChatStore = create<ChatState>()(
         projects: state.projects,
         selectedModels: state.selectedModels,
       }),
+      skipHydration: true,
     }
   )
 )

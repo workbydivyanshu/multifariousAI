@@ -301,6 +301,7 @@ export const useSlidesStore = create<SlidesState>()(
         modelErrors: state.modelErrors,
         responses: state.responses, // Persist responses to survive refresh
       }),
+      skipHydration: true,
     }
   )
 )

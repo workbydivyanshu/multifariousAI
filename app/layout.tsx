@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/components/auth/auth-provider'
+import { StoreHydration } from '@/components/store-hydration'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 
@@ -34,6 +35,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            <StoreHydration />
             {children}
           </AuthProvider>
         </ThemeProvider>
