@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useChatStore } from '@/stores/chat-store'
+import { useHydrated } from '@/components/store-hydration'
 
 // Provider configurations for fetching models
 const PROVIDERS = [
@@ -20,9 +21,11 @@ const PROVIDERS = [
 export function ModelInitializer() {
   const { providerKeys, setFetchedModels, fetchedModels } = useChatStore()
   const [initialized, setInitialized] = useState(false)
+  const hydrated = useHydrated()
 
   useEffect(() => {
-    if (initialized) return
+    // Wait for hydration to complete before fetching
+    if (!hydrated || initialized) return
 
     const initializeModels = async () => {
       const providersToFetch = PROVIDERS.filter(provider => {
@@ -58,10 +61,8 @@ export function ModelInitializer() {
       setInitialized(true)
     }
 
-    // Small delay to ensure hydration is complete
-    const timer = setTimeout(initializeModels, 100)
-    return () => clearTimeout(timer)
-  }, [initialized, providerKeys, fetchedModels, setFetchedModels])
+    initializeModels()
+  }, [hydrated, initialized, providerKeys, fetchedModels, setFetchedModels])
 
   return null // This component doesn't render anything
 }

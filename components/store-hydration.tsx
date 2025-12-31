@@ -1,8 +1,15 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState, createContext, useContext } from 'react'
 import { useChatStore } from '@/stores/chat-store'
 import { useSlidesStore } from '@/stores/slides-store'
+
+// Context to track hydration state
+const HydrationContext = createContext(false)
+
+export function useHydrated() {
+  return useContext(HydrationContext)
+}
 
 /**
  * StoreHydration component handles manual hydration of Zustand stores.
@@ -10,12 +17,22 @@ import { useSlidesStore } from '@/stores/slides-store'
  * to prevent hydration mismatch errors, and we manually trigger rehydration
  * on the client side after mount.
  */
-export function StoreHydration() {
+export function StoreHydration({ children }: { children?: React.ReactNode }) {
+  const [hydrated, setHydrated] = useState(false)
+
   useEffect(() => {
     // Rehydrate stores from localStorage after client mount
-    useChatStore.persist.rehydrate()
-    useSlidesStore.persist.rehydrate()
+    const rehydrate = async () => {
+      await useChatStore.persist.rehydrate()
+      await useSlidesStore.persist.rehydrate()
+      setHydrated(true)
+    }
+    rehydrate()
   }, [])
 
-  return null
+  return (
+    <HydrationContext.Provider value={hydrated}>
+      {children}
+    </HydrationContext.Provider>
+  )
 }

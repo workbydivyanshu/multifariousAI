@@ -35,8 +35,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <StoreHydration />
-            {children}
+            <StoreHydration>
+              {children}
+            </StoreHydration>
           </AuthProvider>
         </ThemeProvider>
         <Toaster />
