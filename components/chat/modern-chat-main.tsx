@@ -212,12 +212,18 @@ export function ModernChatMain() {
     // Query all API-based slides in parallel
     const apiPromises = apiSlides.map(async (slide) => {
       const model = getModelById(slide.modelId || '')
+      
+      // Debug logging
+      console.log('[Debug] Slide:', slide.modelId, 'Model found:', !!model, 'fetchedModels keys:', Object.keys(fetchedModels))
+      
       if (!model) {
+        console.warn('[Debug] Model not found for slide:', slide.modelId, 'Available models:', 
+          Object.values(fetchedModels).flat().map((m: any) => m.id).slice(0, 10))
         addResponse(queryId, {
           slideId: slide.id,
           content: '',
           isStreaming: false,
-          error: 'Model not found'
+          error: 'Model not found - try refreshing the page'
         })
         return
       }

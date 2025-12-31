@@ -16,9 +16,9 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now()
   
   try {
-    // Rate limiting by IP
+    // Rate limiting by IP - allow 500 requests per minute for multi-model queries
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
-    const rateLimit = checkRateLimit(`chat:${clientIp}`, { maxRequests: 60, windowMs: 60000 })
+    const rateLimit = checkRateLimit(`chat:${clientIp}`, { maxRequests: 500, windowMs: 60000 })
     
     if (!rateLimit.allowed) {
       structuredLog('warn', 'Rate limit exceeded', { requestId, status: 429 })
@@ -86,10 +86,15 @@ export async function POST(req: NextRequest) {
 
     // Stream the response back to client
     return response
-  } catch (error) {
-    console.error('[Chat API] Error:', error)
+  } catch (error: any) {
+    console.error('[Chat API] Error:', error?.message || error)
+    
+    // Return more specific error message
+    const errorMessage = error?.message || 'Internal server error'
+    const isNetworkError = errorMessage.includes('fetch') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('network')
+    
     return Response.json(
-      { error: 'Internal server error' },
+      { error: isNetworkError ? 'Failed to connect to AI provider. Please try again.' : errorMessage },
       { status: 500 }
     )
   }
