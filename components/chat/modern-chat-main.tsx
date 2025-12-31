@@ -209,8 +209,11 @@ export function ModernChatMain() {
         console.error('Failed to save to localStorage:', error)
       }
 
-    // Query all API-based slides in parallel
-    const apiPromises = apiSlides.map(async (slide) => {
+    // Process models in batches of 5 to avoid overwhelming the server
+    const BATCH_SIZE = 5
+    
+    // Helper function to process a single slide
+    const processSlide = async (slide: typeof apiSlides[0]) => {
       const model = getModelById(slide.modelId || '')
       
       // Debug logging
@@ -466,9 +469,18 @@ export function ModernChatMain() {
           console.error('Failed to save error to localStorage:', lsError)
         }
       }
-    })
+    }
 
-    await Promise.all(apiPromises)
+    // Process slides in batches of BATCH_SIZE
+    console.log(`[Batch] Processing ${apiSlides.length} models in batches of ${BATCH_SIZE}`)
+    
+    for (let i = 0; i < apiSlides.length; i += BATCH_SIZE) {
+      const batch = apiSlides.slice(i, i + BATCH_SIZE)
+      console.log(`[Batch] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(apiSlides.length / BATCH_SIZE)}: ${batch.map(s => s.name).join(', ')}`)
+      
+      // Process this batch in parallel
+      await Promise.all(batch.map(processSlide))
+    }
     
     // Sort slides so errored ones go to the end
     sortSlidesByErrors()
