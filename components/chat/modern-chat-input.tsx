@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Send, Loader2, Settings2, Sparkles, Zap, Globe, BookOpen, Brain } from 'lucide-react'
+import { Send, Loader2, Settings2, Sparkles, Zap, Globe, BookOpen, Brain, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,6 +10,7 @@ import { useChatStore } from '@/stores/chat-store'
 
 interface ModernChatInputProps {
   onSend: (message: string) => void
+  onStop?: () => void
   disabled?: boolean
   placeholder?: string
   isLoading?: boolean
@@ -25,6 +26,7 @@ const MAX_HEIGHT = 200
 
 export function ModernChatInput({
   onSend,
+  onStop,
   disabled = false,
   placeholder = 'Ask anything...',
   isLoading = false,
@@ -36,9 +38,15 @@ export function ModernChatInput({
 }: ModernChatInputProps) {
   const [value, setValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   
   const { webSearchEnabled, researchEnabled, reasoningEnabled, setWebSearchEnabled, setResearchEnabled, setReasoningEnabled } = useChatStore()
+
+  // Prevent hydration mismatch by waiting for mount
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Auto-resize textarea
   const adjustHeight = useCallback((reset?: boolean) => {
@@ -143,7 +151,7 @@ export function ModernChatInput({
               )}
               
               {/* Web Search Toggle */}
-              {showWebSearchToggle && (
+              {mounted && showWebSearchToggle && (
                 <Button
                   variant={webSearchEnabled ? "default" : "ghost"}
                   size="sm"
@@ -162,7 +170,7 @@ export function ModernChatInput({
               )}
               
               {/* Research Toggle */}
-              {showResearchToggle && (
+              {mounted && showResearchToggle && (
                 <Button
                   variant={researchEnabled ? "default" : "ghost"}
                   size="sm"
@@ -181,7 +189,7 @@ export function ModernChatInput({
               )}
               
               {/* Reasoning Toggle */}
-              {showReasoningToggle && (
+              {mounted && showReasoningToggle && (
                 <Button
                   variant={reasoningEnabled ? "default" : "ghost"}
                   size="sm"
@@ -224,35 +232,37 @@ export function ModernChatInput({
                 </motion.span>
               )}
 
-              {/* Submit button */}
+              {/* Submit/Stop button */}
               <motion.div
-                whileHover={{ scale: canSubmit ? 1.05 : 1 }}
-                whileTap={{ scale: canSubmit ? 0.95 : 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit}
-                  size="sm"
-                  className={cn(
-                    'rounded-full h-9 sm:h-10 px-3 sm:px-4 gap-1.5 sm:gap-2 transition-all duration-300',
-                    canSubmit
-                      ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-500 text-white shadow-lg shadow-primary/25'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="hidden sm:inline">Sending...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span className="hidden sm:inline">Ask AI</span>
-                      <Send className="w-4 h-4" />
-                    </>
-                  )}
-                </Button>
+                {isLoading && onStop ? (
+                  <Button
+                    onClick={onStop}
+                    size="sm"
+                    className="rounded-full h-9 sm:h-10 px-3 sm:px-4 gap-1.5 sm:gap-2 transition-all duration-300 bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg"
+                  >
+                    <Square className="w-4 h-4 fill-current" />
+                    <span className="hidden sm:inline">Stop</span>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!canSubmit}
+                    size="sm"
+                    className={cn(
+                      'rounded-full h-9 sm:h-10 px-3 sm:px-4 gap-1.5 sm:gap-2 transition-all duration-300',
+                      canSubmit
+                        ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-500 text-white shadow-lg shadow-primary/25'
+                        : 'bg-muted text-muted-foreground'
+                    )}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="hidden sm:inline">Ask AI</span>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                )}
               </motion.div>
             </div>
           </div>

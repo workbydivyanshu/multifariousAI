@@ -247,11 +247,11 @@ export const MODEL_CATALOG: AiModel[] = [
     id: 'aya-23-8b',
     label: 'Aya 23 8B (Free)',
     provider: 'openrouter',
-    model: 'coherecommand-r-plus',
+    model: 'cohere/aya-23-8b:free',
     free: true,
     category: 'text',
     description: 'Cohere\'s multilingual model',
-    context: 128000,
+    context: 8192,
   },
   {
     id: 'command-r-plus',

@@ -66,6 +66,7 @@ export function ModernChatMain() {
   const { providerKeys } = useChatStore()
   
   const scrollRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const [queries, setQueries] = useState<QueryGroup[]>([])
   const [showModelSelector, setShowModelSelector] = useState(false)
   const [consensusLoading, setConsensusLoading] = useState<string | null>(null)
@@ -74,6 +75,7 @@ export function ModernChatMain() {
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSessionId, setActiveSessionIdState] = useState<string | null>(null)
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0)
 
   useEffect(() => {
     setMounted(true)
@@ -178,6 +180,20 @@ export function ModernChatMain() {
       return
     }
 
+    // Create a new AbortController for this request batch
+    abortControllerRef.current = new AbortController()
+
+    // Auto-create a chat session if none exists
+    let currentSessionId = activeSessionId
+    if (!currentSessionId) {
+      const newSession = createChatSession('New Chat')
+      setActiveSessionIdState(newSession.id)
+      setActiveSession(newSession.id)
+      currentSessionId = newSession.id
+      // Trigger sidebar refresh to show the new session
+      setSidebarRefreshTrigger(prev => prev + 1)
+    }
+
     const queryId = `query-${Date.now()}`
     const newQuery: QueryGroup = {
       id: queryId,
@@ -195,7 +211,7 @@ export function ModernChatMain() {
           id: queryId,
           userMessage: content,
           timestamp: Date.now(),
-          sessionId: activeSessionId || undefined,
+          sessionId: currentSessionId || undefined,
           responses: {}
         })
       } catch (error) {
@@ -311,15 +327,17 @@ export function ModernChatMain() {
           requestBody.apiKey = apiKey
         }
 
-        // Add timeout to prevent infinite hangs (2 minutes max)
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 120000)
+        // Use shared AbortController for stop functionality (with 2 minute timeout fallback)
+        if (!abortControllerRef.current) {
+          abortControllerRef.current = new AbortController()
+        }
+        const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), 120000)
 
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
-          signal: controller.signal,
+          signal: abortControllerRef.current.signal,
         })
 
         clearTimeout(timeoutId)
@@ -528,6 +546,22 @@ export function ModernChatMain() {
     setConsensusResponses({})
   }
 
+  const handleActiveSessionCleared = () => {
+    // When all sessions are deleted, clear the active session state
+    setActiveSessionIdState(null)
+    setQueries([])
+    setConsensusResponses({})
+  }
+
+  const handleStopResponse = () => {
+    // Abort all pending requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    setQuerying(false)
+  }
+
   return (
     <div className="flex h-full bg-gradient-to-b from-background via-background to-muted/20">
       {/* Chat Sidebar */}
@@ -537,6 +571,8 @@ export function ModernChatMain() {
         activeSessionId={activeSessionId}
         onSessionChange={handleSessionChange}
         onNewSession={handleNewSession}
+        onActiveSessionCleared={handleActiveSessionCleared}
+        refreshTrigger={sidebarRefreshTrigger}
       />
 
       {/* Main Content */}
@@ -736,6 +772,7 @@ export function ModernChatMain() {
         <div className="border-t bg-background/80 backdrop-blur-sm py-2 sm:py-4 safe-area-inset-bottom\">
           <ModernChatInput
               onSend={handleSendMessage}
+              onStop={handleStopResponse}
               disabled={!mounted || isQuerying}
               isLoading={isQuerying}
               modelCount={modelCount}

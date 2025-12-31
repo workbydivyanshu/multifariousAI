@@ -1,11 +1,21 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Trash2, MessageSquare, ChevronRight, X, Pencil, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { 
   getAllChatSessions, 
@@ -23,6 +33,8 @@ interface ChatSidebarProps {
   activeSessionId: string | null
   onSessionChange: (sessionId: string) => void
   onNewSession: (session: ChatSession) => void
+  onActiveSessionCleared?: () => void
+  refreshTrigger?: number
 }
 
 export function ChatSidebar({
@@ -31,11 +43,15 @@ export function ChatSidebar({
   activeSessionId,
   onSessionChange,
   onNewSession,
+  onActiveSessionCleared,
+  refreshTrigger,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [mounted, setMounted] = useState(false)
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
 
   // Load sessions only on client side to avoid hydration mismatch
@@ -43,6 +59,13 @@ export function ChatSidebar({
     setMounted(true)
     setSessions(getAllChatSessions())
   }, [])
+
+  // Refresh sessions when refreshTrigger changes
+  useEffect(() => {
+    if (mounted && refreshTrigger !== undefined) {
+      setSessions(getAllChatSessions())
+    }
+  }, [mounted, refreshTrigger])
 
   // Focus the input when editing starts
   useEffect(() => {
@@ -64,21 +87,32 @@ export function ChatSidebar({
     onSessionChange(sessionId)
   }
 
-  const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    deleteChatSession(sessionId)
-    const updated = sessions.filter(s => s.id !== sessionId)
+    setSessionToDelete(sessionId)
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (!sessionToDelete) return
+    
+    deleteChatSession(sessionToDelete)
+    const updated = sessions.filter(s => s.id !== sessionToDelete)
     setSessions(updated)
     
     // If we deleted the active session, switch to another or set to null
-    if (activeSessionId === sessionId) {
+    if (activeSessionId === sessionToDelete) {
       if (updated.length > 0) {
         handleSelectSession(updated[0].id)
       } else {
         // No sessions left - set active to null, don't auto-create
         setActiveSession(null)
+        onActiveSessionCleared?.()
       }
     }
+    
+    setDeleteConfirmOpen(false)
+    setSessionToDelete(null)
   }
 
   const handleStartRename = (session: ChatSession, e: React.MouseEvent) => {
@@ -248,7 +282,7 @@ export function ChatSidebar({
                     </button>
                   )}
                   <button
-                    onClick={(e) => handleDeleteSession(session.id, e)}
+                    onClick={(e) => handleDeleteClick(session.id, e)}
                     className={cn(
                       'p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
                       'hover:bg-destructive/10 text-destructive transition-all hover:scale-110 active:scale-95'
@@ -262,6 +296,27 @@ export function ChatSidebar({
           </div>
         )}
       </ScrollArea>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Chat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this chat? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSessionToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
     </>
   )
