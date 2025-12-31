@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Message } from '@/types'
-import { getModelById } from '@/lib/models'
+import { useChatStore } from '@/stores/chat-store'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -38,11 +38,21 @@ export function MultiResponseView({
   consensusResponse,
   isStreaming
 }: MultiResponseViewProps) {
+  const { fetchedModels } = useChatStore()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [selectedBestId, setSelectedBestId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewMode, setViewMode] = useState<'slides' | 'grid'>('slides')
+
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
 
   // Auto-scroll to show new responses
   useEffect(() => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { Message } from '@/types'
-import { getModelById } from '@/lib/models'
+import { useChatStore } from '@/stores/chat-store'
 import ReactMarkdown from 'react-markdown'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +16,17 @@ interface MessageGroup {
 }
 
 export function ChatMessages({ messages, selectedModels }: ChatMessagesProps) {
+  const { fetchedModels } = useChatStore()
+  
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
+  
   const groupedMessages: MessageGroup[] = []
 
   messages.forEach((msg) => {

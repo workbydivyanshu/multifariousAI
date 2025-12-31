@@ -20,6 +20,7 @@ interface ChatState {
     topP: number
   }
   customModels: AiModel[]
+  fetchedModels: Record<string, AiModel[]> // provider -> models fetched from API
   providerKeys: {
     openrouter?: string
     openai?: string
@@ -59,6 +60,9 @@ interface ChatState {
   addCustomModel: (model: AiModel) => void
   removeCustomModel: (modelId: string) => void
   setProviderKey: (provider: string, key: string) => void
+  setFetchedModels: (provider: string, models: AiModel[]) => void
+  clearFetchedModels: (provider: string) => void
+  getAllFetchedModels: () => AiModel[]
   clearAll: () => void
 }
 
@@ -81,6 +85,7 @@ export const useChatStore = create<ChatState>()(
         topP: 1.0,
       },
       customModels: [],
+      fetchedModels: {},
       providerKeys: {},
 
       // Database operations - stubbed for local-only mode
@@ -212,6 +217,23 @@ export const useChatStore = create<ChatState>()(
           providerKeys: { ...state.providerKeys, [provider]: key },
         })),
 
+      setFetchedModels: (provider, models) =>
+        set((state) => ({
+          fetchedModels: { ...state.fetchedModels, [provider]: models },
+        })),
+
+      clearFetchedModels: (provider) =>
+        set((state) => {
+          const newFetchedModels = { ...state.fetchedModels }
+          delete newFetchedModels[provider]
+          return { fetchedModels: newFetchedModels }
+        }),
+
+      getAllFetchedModels: () => {
+        const state = get()
+        return Object.values(state.fetchedModels).flat()
+      },
+
       clearAll: () =>
         set({
           threads: [],
@@ -228,6 +250,7 @@ export const useChatStore = create<ChatState>()(
       partialize: (state) => ({
         threads: state.threads,
         customModels: state.customModels,
+        fetchedModels: state.fetchedModels,
         providerKeys: state.providerKeys,
         settings: state.settings,
         projects: state.projects,

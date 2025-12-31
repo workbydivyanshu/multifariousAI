@@ -20,7 +20,6 @@ import { ApiKeySettings } from '@/components/settings/api-key-settings'
 import { ChatSidebar } from '@/components/chat/chat-sidebar'
 import { useSlidesStore } from '@/stores/slides-store'
 import { useChatStore } from '@/stores/chat-store'
-import { getModelById } from '@/lib/models'
 import { parseApiError, getUserFriendlyMessage, logError } from '@/lib/error-handler'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -58,12 +57,20 @@ export function ModernChatMain() {
     responses,
     getEnabledSlides,
     addApiSlide,
-    addAllModelsForProvider,
     recordModelError,
     sortSlidesByErrors,
   } = useSlidesStore()
   
-  const { providerKeys } = useChatStore()
+  const { providerKeys, fetchedModels } = useChatStore()
+  
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
   
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -114,22 +121,6 @@ export function ModernChatMain() {
       setQueries(loadedQueries)
     }
   }, [mounted, activeSessionId])
-
-  // Auto-add all models when API keys are configured
-  useEffect(() => {
-    if (mounted) {
-      // Add models for each configured provider
-      if (providerKeys.openrouter) addAllModelsForProvider('openrouter')
-      if (providerKeys.openai) addAllModelsForProvider('openai')
-      if (providerKeys.anthropic) addAllModelsForProvider('anthropic')
-      if (providerKeys.gemini) addAllModelsForProvider('gemini')
-      if (providerKeys.mistral) addAllModelsForProvider('mistral')
-      if (providerKeys.groq) addAllModelsForProvider('groq')
-      if (providerKeys.together) addAllModelsForProvider('together')
-      if (providerKeys.perplexity) addAllModelsForProvider('perplexity')
-      if (providerKeys.ollamaUrl) addAllModelsForProvider('ollama')
-    }
-  }, [mounted, providerKeys, addAllModelsForProvider])
 
   const enabledSlides = getEnabledSlides()
   const apiSlides = enabledSlides.filter(s => s.type === 'api')
@@ -436,18 +427,10 @@ export function ModernChatMain() {
                                errorLower.includes('invalid model')
         }
         
-        // Record the error to track problematic models
-        // For deprecation errors, record multiple times to immediately disable
+        // Record the error and auto-disable the model
         if (slide.modelId) {
-          if (isDeprecationError) {
-            // Force immediate disable by recording 3 errors
-            recordModelError(slide.modelId, userMessage)
-            recordModelError(slide.modelId, userMessage)
-            recordModelError(slide.modelId, userMessage)
-            console.log(`[Auto-disable] Model ${slide.modelId} disabled due to deprecation error`)
-          } else {
-            recordModelError(slide.modelId, userMessage)
-          }
+          recordModelError(slide.modelId, userMessage)
+          console.log(`[Auto-disable] Model ${slide.modelId} disabled due to error: ${userMessage}`)
         }
         
         addResponse(queryId, {
@@ -782,9 +765,9 @@ export function ModernChatMain() {
                   : `Ask ${modelCount} AI${modelCount > 1 ? 's' : ''} anything...`
               }
               onOpenSettings={() => setShowModelSelector(true)}
-              showWebSearchToggle={hasWebSearchModel}
-              showResearchToggle={hasResearchModel}
-              showReasoningToggle={hasReasoningModel}
+              showWebSearchToggle={true}
+              showResearchToggle={true}
+              showReasoningToggle={true}
             />
           </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ModernChatMain } from './modern-chat-main'
 import { useChatStore } from '@/stores/chat-store'
+import { ModelInitializer } from '@/components/model-initializer'
 
 export function ChatInterface() {
   const { loadUserData } = useChatStore()
@@ -14,6 +15,7 @@ export function ChatInterface() {
 
   return (
     <main className="h-screen w-full bg-background">
+      <ModelInitializer />
       <ModernChatMain />
     </main>
   )

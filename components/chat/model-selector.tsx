@@ -2,7 +2,6 @@
 
 import { useChatStore } from '@/stores/chat-store'
 import { useModels } from '@/lib/useModels'
-import { getModelById } from '@/lib/models'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -15,8 +14,17 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { CONSTANTS } from '@/types'
 
 export function ModelSelector() {
-  const { selectedModels, toggleModel, setSelectedModels } = useChatStore()
+  const { selectedModels, toggleModel, setSelectedModels, fetchedModels } = useChatStore()
   const { models, freeModels } = useModels()
+
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const modelList of Object.values(fetchedModels)) {
+      const found = modelList.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
 
   return (
     <div className="mb-4">

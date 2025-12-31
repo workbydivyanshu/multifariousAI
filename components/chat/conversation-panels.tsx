@@ -29,8 +29,8 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { AISlide } from '@/types'
-import { getModelById } from '@/lib/models'
 import { useSlidesStore } from '@/stores/slides-store'
+import { useChatStore } from '@/stores/chat-store'
 
 const SLIDES_PER_PAGE = 4
 const MOBILE_SLIDES_PER_PAGE = 1
@@ -57,6 +57,16 @@ export function ConversationPanels({
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const { reorderSlides } = useSlidesStore()
+  const { fetchedModels } = useChatStore()
+
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
 
   // Handle hydration and mobile detection
   useEffect(() => {

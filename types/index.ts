@@ -83,12 +83,12 @@ export interface ChatSettings {
 }
 
 export const CONSTANTS = {
-  MAX_MODELS: 100,
-  MAX_SLIDES: 100,
+  MAX_MODELS: 1000,
+  MAX_SLIDES: 1000,
   FREE_MESSAGE_LIMIT: 50,
   RESET_TIME: 24 * 60 * 60 * 1000, //1 day
   MAX_OUTPUT_TOKENS: 10000,
 }
 
-export const MAX_MODELS = 100
-export const MAX_SLIDES = 100
+export const MAX_MODELS = 1000
+export const MAX_SLIDES = 1000

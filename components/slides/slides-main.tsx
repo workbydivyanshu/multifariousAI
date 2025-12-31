@@ -6,7 +6,6 @@ import { SlideManager } from '@/components/slides/slide-manager'
 import { SlidesGrid } from '@/components/slides/slides-grid'
 import { useSlidesStore } from '@/stores/slides-store'
 import { useChatStore } from '@/stores/chat-store'
-import { getModelById } from '@/lib/models'
 import { parseApiError, getUserFriendlyMessage, logError } from '@/lib/error-handler'
 import { Message } from '@/types'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -40,7 +39,16 @@ export function SlidesMain() {
     getEnabledSlides,
   } = useSlidesStore()
   
-  const { providerKeys } = useChatStore()
+  const { providerKeys, fetchedModels } = useChatStore()
+  
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
   
   const scrollRef = useRef<HTMLDivElement>(null)
   const [queries, setQueries] = useState<QueryGroup[]>([])

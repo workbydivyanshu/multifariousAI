@@ -22,12 +22,55 @@ export async function POST(req: Request) {
 
     // Perplexity API supports web search by default for Sonar models
     // The model itself determines web search vs research capabilities
+    
+    // Perplexity requires alternating user/assistant messages after optional system message
+    // Filter and normalize messages to ensure proper format
+    const normalizedMessages: { role: string; content: string }[] = []
+    let lastRole = ''
+    
+    for (const msg of messages) {
+      const role = msg.role === 'system' ? 'system' : msg.role === 'assistant' ? 'assistant' : 'user'
+      const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+      
+      // Skip empty messages
+      if (!content || content.trim() === '') continue
+      
+      // System messages can only be at the start
+      if (role === 'system') {
+        if (normalizedMessages.length === 0) {
+          normalizedMessages.push({ role, content })
+        }
+        continue
+      }
+      
+      // For user/assistant, ensure alternation
+      if (role === lastRole && role === 'user') {
+        // Merge consecutive user messages
+        const lastMsg = normalizedMessages[normalizedMessages.length - 1]
+        if (lastMsg) {
+          lastMsg.content += '\n\n' + content
+        }
+      } else if (role === lastRole && role === 'assistant') {
+        // Merge consecutive assistant messages
+        const lastMsg = normalizedMessages[normalizedMessages.length - 1]
+        if (lastMsg) {
+          lastMsg.content += '\n\n' + content
+        }
+      } else {
+        normalizedMessages.push({ role, content })
+        lastRole = role
+      }
+    }
+    
+    // Ensure conversation ends with a user message for new queries
+    if (normalizedMessages.length > 0 && normalizedMessages[normalizedMessages.length - 1].role !== 'user') {
+      // If last message is not user, we need to handle this edge case
+      // This shouldn't normally happen in a proper chat flow
+    }
+    
     const requestBody: any = {
       model,
-      messages: messages.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      messages: normalizedMessages,
       stream: true,
     }
 

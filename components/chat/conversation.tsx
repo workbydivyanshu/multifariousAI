@@ -3,7 +3,6 @@
 import { ChatMessages } from './chat-messages'
 import { ChatInput } from './chat-input'
 import { useChatStore } from '@/stores/chat-store'
-import { getModelById } from '@/lib/models'
 
 interface ConversationProps {
   modelId: string
@@ -11,8 +10,18 @@ interface ConversationProps {
 }
 
 export function Conversation({ modelId, threadId }: ConversationProps) {
-  const { threads, addMessage, setStreaming, providerKeys, isStreaming } = useChatStore()
+  const { threads, addMessage, setStreaming, providerKeys, isStreaming, fetchedModels } = useChatStore()
   const currentThread = threads.find(t => t.id === threadId)
+  
+  // Helper function to get model from fetched models
+  const getModelById = (id: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === id)
+      if (found) return found
+    }
+    return null
+  }
+  
   const model = getModelById(modelId)
 
   const handleSendMessage = async (content: string, attachments?: any[]) => {

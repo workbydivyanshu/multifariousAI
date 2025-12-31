@@ -33,7 +33,7 @@ interface SlidesState {
   reorderSlides: (fromIndex: number, toIndex: number) => void
   
   // Quick add helpers
-  addApiSlide: (modelId: string, apiKey?: string) => void
+  addApiSlide: (modelId: string, apiKey?: string, modelData?: any) => void
   addAllModelsForProvider: (provider: string) => void
   
   // Error tracking
@@ -122,8 +122,9 @@ export const useSlidesStore = create<SlidesState>()(
         })
       },
 
-      addApiSlide: (modelId, apiKey) => {
-        const model = MODEL_CATALOG.find((m) => m.id === modelId)
+      addApiSlide: (modelId, apiKey, modelData) => {
+        // Use provided model data (from fetched models) or fall back to catalog
+        const model = modelData || MODEL_CATALOG.find((m) => m.id === modelId)
         if (!model) return
         
         get().addSlide({
@@ -137,6 +138,8 @@ export const useSlidesStore = create<SlidesState>()(
       },
 
       addAllModelsForProvider: (provider) => {
+        // This is now less useful since models are fetched dynamically
+        // Keep for backwards compatibility
         const modelsForProvider = MODEL_CATALOG.filter(m => m.provider === provider)
         const currentSlides = get().slides
         
@@ -144,7 +147,7 @@ export const useSlidesStore = create<SlidesState>()(
           // Skip if already added
           if (currentSlides.some(s => s.modelId === model.id)) return
           
-          get().addApiSlide(model.id)
+          get().addApiSlide(model.id, undefined, model)
         })
       },
 
@@ -153,13 +156,13 @@ export const useSlidesStore = create<SlidesState>()(
           const existing = state.modelErrors[modelId] || { modelId, errorCount: 0, lastError: '', disabled: false }
           const newCount = existing.errorCount + 1
           
-          // Only disable after 3+ consecutive errors (to avoid disabling due to temporary issues)
-          const shouldDisable = newCount >= 3
+          // Auto-disable on first error - if a model doesn't work, disable it immediately
+          const shouldDisable = true
           
-          // Only update slides if we're disabling
-          const updatedSlides = shouldDisable 
-            ? state.slides.map(s => s.modelId === modelId ? { ...s, enabled: false } : s)
-            : state.slides
+          // Update slides to disable the model
+          const updatedSlides = state.slides.map(s => 
+            s.modelId === modelId ? { ...s, enabled: false } : s
+          )
           
           return {
             slides: updatedSlides,

@@ -6,7 +6,6 @@ import { ModelSelector } from './model-selector'
 import { MultiResponseView } from './multi-response-view'
 import { QuickModelSelect } from './quick-model-select'
 import { useChatStore } from '@/stores/chat-store'
-import { getModelById } from '@/lib/models'
 import { parseApiError, getUserFriendlyMessage, logError } from '@/lib/error-handler'
 import { Message } from '@/types'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -30,8 +29,18 @@ export function ChatMain() {
     setStreaming, 
     setCurrentThread,
     providerKeys, 
-    isStreaming 
+    isStreaming,
+    fetchedModels
   } = useChatStore()
+  
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
   
   const currentThread = threads.find(t => t.id === currentThreadId)
   const scrollRef = useRef<HTMLDivElement>(null)

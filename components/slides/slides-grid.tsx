@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { AISlide, Message } from '@/types'
 import { useSlidesStore } from '@/stores/slides-store'
-import { getModelById } from '@/lib/models'
+import { useChatStore } from '@/stores/chat-store'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -30,6 +30,17 @@ interface SlidesGridProps {
 
 export function SlidesGrid({ userMessage, messageId, onSendToSlide }: SlidesGridProps) {
   const { slides, responses, isQuerying } = useSlidesStore()
+  const { fetchedModels } = useChatStore()
+  
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
+  
   const enabledSlides = slides.filter(s => s.enabled)
   const messageResponses = responses[messageId] || []
   const scrollContainerRef = useRef<HTMLDivElement>(null)

@@ -127,26 +127,60 @@ const PROVIDERS: ProviderConfig[] = [
 ]
 
 export function ApiKeySettings() {
-  const { providerKeys, setProviderKey } = useChatStore()
+  const { providerKeys, setProviderKey, setFetchedModels, clearFetchedModels } = useChatStore()
   const [open, setOpen] = useState(false)
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [testStatus, setTestStatus] = useState<Record<string, 'idle' | 'testing' | 'success' | 'error'>>({})
   const [tempKeys, setTempKeys] = useState<Record<string, string>>({})
+  const [fetchingModels, setFetchingModels] = useState<Record<string, boolean>>({})
 
   const handleKeyChange = (provider: string, value: string) => {
     setTempKeys(prev => ({ ...prev, [provider]: value }))
   }
 
-  const handleSaveKey = (provider: string) => {
-    const value = tempKeys[provider] || ''
-    setProviderKey(provider, value)
-    setTestStatus(prev => ({ ...prev, [provider]: 'idle' }))
+  const fetchModelsForProvider = async (providerId: string, apiKey: string) => {
+    setFetchingModels(prev => ({ ...prev, [providerId]: true }))
+    try {
+      const response = await fetch('/api/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: providerId, apiKey }),
+      })
+      
+      if (response.ok) {
+        const { models } = await response.json()
+        if (models && models.length > 0) {
+          setFetchedModels(providerId, models)
+          return true
+        }
+      }
+      return false
+    } catch (error) {
+      console.error(`Failed to fetch models for ${providerId}:`, error)
+      return false
+    } finally {
+      setFetchingModels(prev => ({ ...prev, [providerId]: false }))
+    }
   }
 
-  const handleRemoveKey = (provider: string) => {
-    setProviderKey(provider, '')
-    setTempKeys(prev => ({ ...prev, [provider]: '' }))
-    setTestStatus(prev => ({ ...prev, [provider]: 'idle' }))
+  const handleSaveKey = async (provider: ProviderConfig) => {
+    const value = tempKeys[provider.keyName] || ''
+    setProviderKey(provider.keyName, value)
+    setTestStatus(prev => ({ ...prev, [provider.id]: 'idle' }))
+    
+    // Fetch models when key is saved
+    if (value) {
+      await fetchModelsForProvider(provider.id, value)
+    } else {
+      clearFetchedModels(provider.id)
+    }
+  }
+
+  const handleRemoveKey = (provider: ProviderConfig) => {
+    setProviderKey(provider.keyName, '')
+    setTempKeys(prev => ({ ...prev, [provider.keyName]: '' }))
+    setTestStatus(prev => ({ ...prev, [provider.id]: 'idle' }))
+    clearFetchedModels(provider.id)
   }
 
   const handleTestKey = async (provider: ProviderConfig) => {
@@ -155,122 +189,21 @@ export function ApiKeySettings() {
     try {
       const key = tempKeys[provider.keyName] || (providerKeys as any)[provider.keyName] || ''
       
-      if (provider.id === 'ollama') {
-        // Test Ollama connection
-        const url = key || 'http://localhost:11434'
-        const response = await fetch(`${url}/api/tags`, { method: 'GET' })
-        if (response.ok) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Connection failed')
-        }
-      } else if (provider.id === 'openrouter') {
-        // Test OpenRouter key
-        const response = await fetch('https://openrouter.ai/api/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        })
-        if (response.ok) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
-      } else if (provider.id === 'openai') {
-        // Test OpenAI key
-        const response = await fetch('https://api.openai.com/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        })
-        if (response.ok) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
-      } else if (provider.id === 'anthropic') {
-        // Test Anthropic key by checking a simple endpoint
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 
-            'x-api-key': key,
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: 'claude-3-haiku-20240307',
-            max_tokens: 1,
-            messages: [{ role: 'user', content: 'Hi' }]
-          })
-        })
-        // 200 or 400 (bad request with valid key) means key is valid
-        if (response.ok || response.status === 400) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
-      } else if (provider.id === 'gemini') {
-        // Test Gemini key
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
-        )
-        if (response.ok) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
-      } else if (provider.id === 'mistral') {
-        // Test Mistral key
-        const response = await fetch('https://api.mistral.ai/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        })
-        if (response.ok) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
-      } else if (provider.id === 'groq') {
-        // Test Groq key
-        const response = await fetch('https://api.groq.com/openai/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        })
-        if (response.ok) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
-      } else if (provider.id === 'together') {
-        // Test Together AI key
-        const response = await fetch('https://api.together.xyz/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        })
-        if (response.ok) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
-      } else if (provider.id === 'perplexity') {
-        // Test Perplexity key
-        const response = await fetch('https://api.perplexity.ai/chat/completions', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${key}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: 'sonar',
-            messages: [{ role: 'user', content: 'Hi' }],
-            max_tokens: 1
-          })
-        })
-        // 200 or 400 (bad request with valid key) means key is valid
-        if (response.ok || response.status === 400) {
-          setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
-        } else {
-          throw new Error('Invalid API key')
-        }
+      // Use our models API endpoint to both test and fetch models
+      const success = await fetchModelsForProvider(provider.id, key)
+      
+      if (success) {
+        setTestStatus(prev => ({ ...prev, [provider.id]: 'success' }))
+        // Save the key on successful test
+        setProviderKey(provider.keyName, key)
+      } else {
+        throw new Error('Failed to fetch models')
       }
     } catch (error) {
       setTestStatus(prev => ({ ...prev, [provider.id]: 'error' }))
     }
 
-    // Reset after 3 seconds
+    // Reset status after 3 seconds
     setTimeout(() => {
       setTestStatus(prev => ({ ...prev, [provider.id]: 'idle' }))
     }, 3000)
@@ -386,11 +319,11 @@ export function ApiKeySettings() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button 
                     size="sm" 
-                    onClick={() => handleSaveKey(provider.keyName)}
-                    disabled={!getKeyValue(provider)}
+                    onClick={() => handleSaveKey(provider)}
+                    disabled={!getKeyValue(provider) || fetchingModels[provider.id]}
                     className="text-xs sm:text-sm h-8"
                   >
-                    Save
+                    {fetchingModels[provider.id] ? 'Fetching...' : 'Save'}
                   </Button>
                   <Button
                     size="sm"
@@ -406,7 +339,7 @@ export function ApiKeySettings() {
                       size="sm"
                       variant="ghost"
                       className="text-destructive"
-                      onClick={() => handleRemoveKey(provider.keyName)}
+                      onClick={() => handleRemoveKey(provider)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
