@@ -37,11 +37,21 @@ const MAX_MODELS = 1000
 
 export function ModelSelectorDialog({ open, onOpenChange }: ModelSelectorDialogProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const { slides, addApiSlide, addApiSlidesBatch, removeSlide, removeSlidesBatch, getEnabledSlides } = useSlidesStore()
+  const {
+    slides,
+    addApiSlide,
+    addApiSlidesBatch,
+    removeSlide,
+    removeSlidesBatch,
+    getEnabledSlides,
+    getApiSlides
+  } = useSlidesStore()
   const { providerKeys, fetchedModels } = useChatStore()
 
+  // All API slides (enabled + disabled) are counted as already added
+  const apiSlides = getApiSlides().filter(s => s.type === 'api')
   const enabledSlides = getEnabledSlides().filter(s => s.type === 'api')
-  const selectedModelIds = enabledSlides.map(s => s.modelId)
+  const selectedModelIds = apiSlides.map(s => s.modelId)
 
   // Check if user has any API keys configured
   const hasAnyApiKey = Object.values(providerKeys).some(key => !!key)
@@ -94,7 +104,7 @@ export function ModelSelectorDialog({ open, onOpenChange }: ModelSelectorDialogP
 
   const handleRemoveAll = () => {
     // Remove all selected slides in batch
-    const slideIds = enabledSlides.map(slide => slide.id)
+    const slideIds = apiSlides.map(slide => slide.id)
     removeSlidesBatch(slideIds)
   }
 
@@ -108,7 +118,7 @@ export function ModelSelectorDialog({ open, onOpenChange }: ModelSelectorDialogP
           </DialogTitle>
           <DialogDescription className="text-sm">
             {hasAnyApiKey 
-              ? `${availableModels.length} models available • ${selectedModelIds.length} selected`
+              ? `${availableModels.length} models available • ${selectedModelIds.length} added`
               : 'Add API keys in Settings to unlock AI models.'
             }
           </DialogDescription>
