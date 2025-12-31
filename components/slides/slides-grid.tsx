@@ -92,6 +92,7 @@ export function SlidesGrid({ userMessage, messageId, onSendToSlide }: SlidesGrid
             response={messageResponses.find(r => r.slideId === slide.id)}
             userMessage={userMessage}
             expanded
+            fetchedModels={fetchedModels}
           />
         </div>
       </div>
@@ -155,6 +156,7 @@ export function SlidesGrid({ userMessage, messageId, onSendToSlide }: SlidesGrid
                     slide={slide}
                     response={response}
                     userMessage={userMessage}
+                    fetchedModels={fetchedModels}
                   />
                 </div>
               </div>
@@ -171,13 +173,23 @@ interface SlideContentProps {
   response?: { content: string; isStreaming: boolean; error?: string }
   userMessage: string
   expanded?: boolean
+  fetchedModels: Record<string, any[]>
 }
 
-function SlideContent({ slide, response, userMessage, expanded }: SlideContentProps) {
+function SlideContent({ slide, response, userMessage, expanded, fetchedModels }: SlideContentProps) {
   const [copied, setCopied] = useState(false)
   const [iframeBlocked, setIframeBlocked] = useState(false)
   const [iframeLoading, setIframeLoading] = useState(true)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
 
   const handleCopy = async () => {
     if (response?.content) {

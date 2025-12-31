@@ -1,12 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { 
+  ModelsRequestSchema, 
+  validateRequest, 
+  isValidOllamaUrl,
+  checkRateLimit,
+  generateRequestId,
+  structuredLog 
+} from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
+  const requestId = generateRequestId()
+  
   try {
-    const { provider, apiKey } = await request.json()
-
-    if (!provider) {
-      return NextResponse.json({ error: 'Provider is required' }, { status: 400 })
+    // Rate limiting
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
+    const rateLimit = checkRateLimit(`models:${clientIp}`, { maxRequests: 30, windowMs: 60000 })
+    
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please try again later.' },
+        { status: 429 }
+      )
     }
+
+    const body = await request.json()
+    
+    // Validate request
+    const validation = validateRequest(ModelsRequestSchema, body)
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    
+    const { provider, apiKey } = validation.data
+
+    structuredLog('info', 'Models fetch request', { requestId, provider })
 
     let models: any[] = []
 
@@ -42,9 +69,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unknown provider' }, { status: 400 })
     }
 
+    structuredLog('info', 'Models fetch success', { requestId, provider })
     return NextResponse.json({ models })
   } catch (error: any) {
-    console.error('Error fetching models:', error)
+    structuredLog('error', 'Models fetch failed', { requestId }, error)
     return NextResponse.json(
       { error: error.message || 'Failed to fetch models' },
       { status: 500 }
@@ -52,7 +80,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function fetchOpenRouterModels(apiKey: string) {
+async function fetchOpenRouterModels(apiKey?: string) {
+  if (!apiKey) throw new Error('OpenRouter API key is required')
   const response = await fetch('https://openrouter.ai/api/v1/models', {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -75,7 +104,8 @@ async function fetchOpenRouterModels(apiKey: string) {
   })) || []
 }
 
-async function fetchOpenAIModels(apiKey: string) {
+async function fetchOpenAIModels(apiKey?: string) {
+  if (!apiKey) throw new Error('OpenAI API key is required')
   const response = await fetch('https://api.openai.com/v1/models', {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -103,7 +133,8 @@ async function fetchOpenAIModels(apiKey: string) {
   }))
 }
 
-async function fetchAnthropicModels(apiKey: string) {
+async function fetchAnthropicModels(apiKey?: string) {
+  if (!apiKey) throw new Error('Anthropic API key is required')
   // Anthropic doesn't have a public models list API, return known models
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -131,7 +162,8 @@ async function fetchAnthropicModels(apiKey: string) {
   throw new Error('Invalid Anthropic API key')
 }
 
-async function fetchGeminiModels(apiKey: string) {
+async function fetchGeminiModels(apiKey?: string) {
+  if (!apiKey) throw new Error('Gemini API key is required')
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
   )
@@ -154,7 +186,8 @@ async function fetchGeminiModels(apiKey: string) {
     })) || []
 }
 
-async function fetchMistralModels(apiKey: string) {
+async function fetchMistralModels(apiKey?: string) {
+  if (!apiKey) throw new Error('Mistral API key is required')
   const response = await fetch('https://api.mistral.ai/v1/models', {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -177,7 +210,8 @@ async function fetchMistralModels(apiKey: string) {
   })) || []
 }
 
-async function fetchGroqModels(apiKey: string) {
+async function fetchGroqModels(apiKey?: string) {
+  if (!apiKey) throw new Error('Groq API key is required')
   const response = await fetch('https://api.groq.com/openai/v1/models', {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -200,7 +234,8 @@ async function fetchGroqModels(apiKey: string) {
   })) || []
 }
 
-async function fetchTogetherModels(apiKey: string) {
+async function fetchTogetherModels(apiKey?: string) {
+  if (!apiKey) throw new Error('Together AI API key is required')
   const response = await fetch('https://api.together.xyz/v1/models', {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -228,27 +263,51 @@ async function fetchTogetherModels(apiKey: string) {
   }))
 }
 
-async function fetchOllamaModels(baseUrl: string) {
-  const url = baseUrl || 'http://localhost:11434'
-  const response = await fetch(`${url}/api/tags`)
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch Ollama models. Is Ollama running?')
+async function fetchOllamaModels(baseUrl?: string) {
+  // SSRF Protection: Validate Ollama URL
+  const urlValidation = isValidOllamaUrl(baseUrl || '')
+  if (!urlValidation.valid) {
+    throw new Error(urlValidation.error || 'Invalid Ollama URL')
   }
+  
+  const url = urlValidation.sanitizedUrl!
+  
+  // Add timeout
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+  
+  try {
+    const response = await fetch(`${url}/api/tags`, {
+      signal: controller.signal,
+    })
 
-  const data = await response.json()
-  return data.models?.map((model: any) => ({
-    id: `ollama-${model.name.replace(/:/g, '-')}`,
-    label: model.name,
-    provider: 'ollama',
-    model: model.name,
-    description: `Local model - ${(model.size / 1e9).toFixed(1)}GB`,
-    context: 4096,
-    category: 'text',
-  })) || []
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch Ollama models. Is Ollama running?')
+    }
+
+    const data = await response.json()
+    return data.models?.map((model: any) => ({
+      id: `ollama-${model.name.replace(/:/g, '-')}`,
+      label: model.name,
+      provider: 'ollama',
+      model: model.name,
+      description: `Local model - ${(model.size / 1e9).toFixed(1)}GB`,
+      context: 4096,
+      category: 'text',
+    })) || []
+  } catch (error: any) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      throw new Error('Ollama connection timed out. Is Ollama running?')
+    }
+    throw error
+  }
 }
 
-async function fetchPerplexityModels(apiKey: string) {
+async function fetchPerplexityModels(apiKey?: string) {
+  if (!apiKey) throw new Error('Perplexity API key is required')
   // Perplexity doesn't have a models list API, return known models after validating key
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',

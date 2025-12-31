@@ -120,15 +120,39 @@ export function getUserFriendlyMessage(error: ApiError): string {
 
 export function logError(context: string, error: ApiError) {
   const timestamp = new Date().toISOString()
+  
+  // Redact sensitive information from error messages
+  const redactedMessage = redactSensitiveData(error.message || 'Unknown error')
+  const redactedDetails = error.details ? redactSensitiveData(error.details) : undefined
+  
   const errorInfo = {
-    message: error.message,
+    message: redactedMessage,
     status: error.status,
-    details: error.details,
+    details: redactedDetails,
   }
-  console.error(`[${timestamp}] ${context}:`, errorInfo.message || 'Unknown error', errorInfo)
+  console.error(`[${timestamp}] ${context}:`, errorInfo.message, errorInfo)
 
   // In production, you could send this to an error tracking service
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
     // Example: send to Sentry, LogRocket, etc.
   }
+}
+
+// Redact API keys and sensitive data from strings
+function redactSensitiveData(input: string): string {
+  const patterns = [
+    /sk-[a-zA-Z0-9]{20,}/g,        // OpenAI/Anthropic style keys
+    /sk-or-v1-[a-zA-Z0-9]+/g,       // OpenRouter keys
+    /pplx-[a-zA-Z0-9]+/g,           // Perplexity keys
+    /gsk_[a-zA-Z0-9]+/g,            // Groq keys
+    /AIza[a-zA-Z0-9_-]+/g,          // Google API keys
+    /api[_-]?key[=:]["']?[a-zA-Z0-9_-]+["']?/gi,
+    /bearer\s+[a-zA-Z0-9_-]+/gi,
+  ]
+  
+  let output = input
+  for (const pattern of patterns) {
+    output = output.replace(pattern, '[REDACTED]')
+  }
+  return output
 }

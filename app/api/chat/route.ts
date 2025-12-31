@@ -1,27 +1,51 @@
 import { NextRequest } from 'next/server'
+import { 
+  ChatRequestSchema, 
+  validateRequest, 
+  isValidOllamaUrl, 
+  checkRateLimit,
+  generateRequestId,
+  structuredLog 
+} from '@/lib/validation'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-interface ChatRequest {
-  messages: Array<{ role: string; content: string }>
-  model: string
-  provider: 'openrouter' | 'openai' | 'anthropic' | 'gemini' | 'mistral' | 'groq' | 'together' | 'ollama' | 'perplexity'
-  apiKey?: string
-  baseUrl?: string
-}
-
 export async function POST(req: NextRequest) {
+  const requestId = generateRequestId()
+  const startTime = Date.now()
+  
   try {
-    const { messages, model, provider, apiKey, baseUrl } = (await req.json()) as ChatRequest
-
-    if (!model) {
-      return Response.json({ error: 'Model is required' }, { status: 400 })
+    // Rate limiting by IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
+    const rateLimit = checkRateLimit(`chat:${clientIp}`, { maxRequests: 60, windowMs: 60000 })
+    
+    if (!rateLimit.allowed) {
+      structuredLog('warn', 'Rate limit exceeded', { requestId, status: 429 })
+      return Response.json(
+        { error: 'Rate limit exceeded. Please try again later.' },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateLimit.resetAt.getTime() - Date.now()) / 1000).toString(),
+            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+          }
+        }
+      )
     }
 
-    if (!provider) {
-      return Response.json({ error: 'Provider is required' }, { status: 400 })
+    const body = await req.json()
+    
+    // Validate request with Zod schema
+    const validation = validateRequest(ChatRequestSchema, body)
+    if (!validation.success) {
+      structuredLog('warn', 'Invalid request', { requestId, status: 400 }, { error: validation.error })
+      return Response.json({ error: validation.error }, { status: 400 })
     }
+    
+    const { messages, model, provider, apiKey, baseUrl } = validation.data
+    
+    structuredLog('info', 'Chat request received', { requestId, provider, model })
 
     let response: Response
 
@@ -370,32 +394,123 @@ async function handleOllama(
   model: string,
   baseUrl?: string
 ) {
-  const ollamaUrl = baseUrl || process.env.OLLAMA_URL || 'http://localhost:11434'
-
-  console.log(`[Chat API] Calling Ollama model: ${model} at ${ollamaUrl}`)
-
-  const response = await fetch(`${ollamaUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
-      stream: true,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
+  // SSRF Protection: Validate Ollama URL
+  const urlValidation = isValidOllamaUrl(baseUrl || '')
+  if (!urlValidation.valid) {
     return Response.json(
-      { error: 'Ollama API error', details: error },
-      { status: response.status }
+      { error: urlValidation.error || 'Invalid Ollama URL' },
+      { status: 400 }
     )
   }
+  
+  const ollamaUrl = urlValidation.sanitizedUrl!
 
-  return createStreamResponse(response)
+  structuredLog('debug', 'Calling Ollama', { provider: 'ollama', model })
+
+  // Add timeout with AbortController
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minute timeout
+
+  try {
+    const response = await fetch(`${ollamaUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+        stream: true,
+      }),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const error = await response.text()
+      return Response.json(
+        { error: 'Ollama API error', details: error },
+        { status: response.status }
+      )
+    }
+
+    return createStreamResponse(response)
+  } catch (error: any) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      return Response.json(
+        { error: 'Request timed out. Ollama may be overloaded or unreachable.' },
+        { status: 504 }
+      )
+    }
+    throw error
+  }
+}
+
+// Process a single SSE line and return true if stream should close
+function processLine(
+  line: string, 
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder
+): boolean {
+  // Handle SSE format (data: {...})
+  if (line.startsWith('data: ')) {
+    const jsonStr = line.slice(6)
+    if (jsonStr === '[DONE]') return true
+    
+    try {
+      const data = JSON.parse(jsonStr)
+      let content = ''
+
+      // OpenRouter/OpenAI format
+      if (data.choices?.[0]?.delta?.content) {
+        content = data.choices[0].delta.content
+      }
+      // Gemini format
+      else if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        content = data.candidates[0].content.parts[0].text
+      }
+      // Anthropic format
+      else if (data.delta?.text) {
+        content = data.delta.text
+      }
+
+      if (content) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
+        )
+      }
+
+      // Check for end conditions
+      if (data.choices?.[0]?.finish_reason || 
+          data.candidates?.[0]?.finishReason ||
+          data.type === 'message_stop') {
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        return true
+      }
+    } catch {
+      // Skip invalid JSON - could be partial line
+    }
+  } else {
+    // Ollama format (plain JSON lines)
+    try {
+      const data = JSON.parse(line)
+      if (data.message?.content) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ content: data.message.content })}\n\n`)
+        )
+      }
+      if (data.done) {
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        return true
+      }
+    } catch {
+      // Skip invalid JSON
+    }
+  }
+  return false
 }
 
 function createStreamResponse(response: Response) {
@@ -410,72 +525,45 @@ function createStreamResponse(response: Response) {
         return
       }
 
+      // Buffer for incomplete lines (handles chunk boundaries correctly)
+      let buffer = ''
+
       try {
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          if (done) {
+            // Process any remaining buffered content
+            if (buffer.trim()) {
+              processLine(buffer.trim(), controller, encoder)
+            }
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            break
+          }
 
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n')
+          // Append to buffer and split by newlines
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          
+          // Keep the last (potentially incomplete) line in buffer
+          buffer = lines.pop() || ''
 
           for (const line of lines) {
-            if (!line.trim() || line === 'data: [DONE]') continue
-
-            // Handle different response formats
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6))
-                let content = ''
-
-                // OpenRouter/OpenAI format
-                if (data.choices?.[0]?.delta?.content) {
-                  content = data.choices[0].delta.content
-                }
-                // Gemini format
-                else if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                  content = data.candidates[0].content.parts[0].text
-                }
-
-                if (content) {
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
-                  )
-                }
-
-                // Check for end conditions
-                if (data.choices?.[0]?.finish_reason || data.candidates?.[0]?.finishReason) {
-                  controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-                  controller.close()
-                  return
-                }
-              } catch {
-                // Skip invalid JSON
-              }
-            } else {
-              // Ollama format (plain JSON lines)
-              try {
-                const data = JSON.parse(line)
-                if (data.message?.content) {
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ content: data.message.content })}\n\n`)
-                  )
-                }
-                if (data.done) {
-                  controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-                  controller.close()
-                  return
-                }
-              } catch {
-                // Skip invalid JSON
-              }
+            const trimmedLine = line.trim()
+            if (!trimmedLine || trimmedLine === 'data: [DONE]') continue
+            
+            const shouldClose = processLine(trimmedLine, controller, encoder)
+            if (shouldClose) {
+              controller.close()
+              return
             }
           }
         }
       } catch (error) {
-        console.error('[Chat API] Stream error:', error)
+        structuredLog('error', 'Stream processing error', {}, error)
         controller.error(error)
       } finally {
         reader.releaseLock()
+        controller.close()
       }
     },
   })

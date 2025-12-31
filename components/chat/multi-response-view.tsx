@@ -175,6 +175,7 @@ export function MultiResponseView({
               onSelectBest={() => handleSelectBest(currentResponse.id)}
               index={currentIndex + 1}
               total={responses.length}
+              fetchedModels={fetchedModels}
             />
           )}
         </div>
@@ -194,6 +195,7 @@ export function MultiResponseView({
               index={idx + 1}
               total={responses.length}
               compact
+              fetchedModels={fetchedModels}
             />
           ))}
         </div>
@@ -276,6 +278,7 @@ interface ResponseCardProps {
   index: number
   total: number
   compact?: boolean
+  fetchedModels: Record<string, any[]>
 }
 
 function ResponseCard({
@@ -286,8 +289,17 @@ function ResponseCard({
   onSelectBest,
   index,
   total,
-  compact
+  compact,
+  fetchedModels
 }: ResponseCardProps) {
+  // Helper function to get model from fetched models
+  const getModelById = (modelId: string) => {
+    for (const models of Object.values(fetchedModels)) {
+      const found = models.find((m: any) => m.id === modelId)
+      if (found) return found
+    }
+    return null
+  }
   const model = getModelById(response.model || '')
 
   return (

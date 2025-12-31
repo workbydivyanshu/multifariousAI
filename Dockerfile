@@ -6,7 +6,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-COPY .env.example .env.local
+
+# Note: .env.local should be injected at runtime, not build time
+# Use docker-compose env_file or -e flags for secrets
 
 RUN npm ci
 
