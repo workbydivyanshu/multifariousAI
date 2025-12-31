@@ -416,7 +416,13 @@ export function ModernChatMain() {
         } else {
           const apiError = parseApiError(error)
           userMessage = getUserFriendlyMessage(apiError)
-          logError(`Chat error for slide ${slide.name}`, apiError)
+          const isAuthMissing = /api key required|api key missing|provide an api key/i.test(userMessage)
+          if (isAuthMissing) {
+            // User action issue (missing key) — warn without disabling or noisy logs
+            console.warn(`[Auth] ${userMessage}`)
+          } else {
+            logError(`Chat error for slide ${slide.name}`, apiError)
+          }
           
           // Check if this is a deprecation error - disable immediately
           const errorLower = userMessage.toLowerCase()
@@ -425,12 +431,19 @@ export function ModernChatMain() {
                                errorLower.includes('no longer available') ||
                                errorLower.includes('model not found') ||
                                errorLower.includes('invalid model')
+          
+          // If this is an auth/key error, don't auto-disable the model
+          if (isAuthMissing) {
+            isDeprecationError = false
+          }
         }
         
-        // Record the error and auto-disable the model
-        if (slide.modelId) {
-          recordModelError(slide.modelId, userMessage)
-          console.log(`[Auto-disable] Model ${slide.modelId} disabled due to error: ${userMessage}`)
+        // Record the error and auto-disable the model unless it's an auth/key issue
+        if (!/api key required|api key missing|provide an api key/i.test(userMessage)) {
+          if (slide.modelId) {
+            recordModelError(slide.modelId, userMessage)
+            console.log(`[Auto-disable] Model ${slide.modelId} disabled due to error: ${userMessage}`)
+          }
         }
         
         addResponse(queryId, {
