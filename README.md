@@ -24,7 +24,6 @@
 - **Auto-Discovery** - Automatically import all your Ollama models
 
 ### 🔥 **Core Features**
-- **User Authentication** - Sign up/login with GitHub or Google OAuth
 - **Chat Persistence** - Save conversations to PostgreSQL database
 - **Multi-Model Chat** - Compare up to 5 models side-by-side
 - **Chat History** - Persistent storage with database
