@@ -2,10 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Sparkles, 
-  Settings2, 
-  Zap, 
+import {
+  Sparkles,
+  Settings2,
+  Zap,
   ArrowDown,
   Plus,
   Award,
@@ -18,6 +18,8 @@ import { ConversationPanels } from '@/components/chat/conversation-panels'
 import { ModelSelectorDialog } from '@/components/chat/model-selector-dialog'
 import { ApiKeySettings } from '@/components/settings/api-key-settings'
 import { ChatSidebar } from '@/components/chat/chat-sidebar'
+import { KeyboardShortcutDialog } from '@/components/chat/keyboard-shortcut-dialog'
+import { OnboardingWalkthrough } from '@/components/chat/onboarding-walkthrough'
 import { useSlidesStore } from '@/stores/slides-store'
 import { useChatStore } from '@/stores/chat-store'
 import { parseApiError, getUserFriendlyMessage, logError } from '@/lib/error-handler'
@@ -26,11 +28,11 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
-import { 
-  saveQueryToLocal, 
-  updateResponseInLocal, 
+import {
+  saveQueryToLocal,
+  updateResponseInLocal,
   getLocalChatHistory,
-  getQueriesForSession 
+  getQueriesForSession
 } from '@/lib/local-storage'
 import {
   getActiveSessionId,
@@ -48,7 +50,7 @@ interface QueryGroup {
 }
 
 export function ModernChatMain() {
-  const { 
+  const {
     slides,
     isQuerying,
     setQuerying,
@@ -60,9 +62,9 @@ export function ModernChatMain() {
     recordModelError,
     sortSlidesByErrors,
   } = useSlidesStore()
-  
+
   const { providerKeys, fetchedModels } = useChatStore()
-  
+
   // Helper function to get model from fetched models
   const getModelById = (modelId: string) => {
     for (const models of Object.values(fetchedModels)) {
@@ -71,7 +73,7 @@ export function ModernChatMain() {
     }
     return null
   }
-  
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const [queries, setQueries] = useState<QueryGroup[]>([])
@@ -83,9 +85,39 @@ export function ModernChatMain() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSessionId, setActiveSessionIdState] = useState<string | null>(null)
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    // Check if onboarding is completed
+    const onboardingComplete = localStorage.getItem('multifariousai-onboarding-complete')
+    if (!onboardingComplete) {
+      setShowOnboarding(true)
+    }
+  }, [])
+
+  // Global keyboard shortcuts for Ctrl+K (model selector) and Ctrl+N (new chat)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K: Open model selector
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowModelSelector(true)
+      }
+      // Ctrl/Cmd + N: Create new chat
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault()
+        const newSession = createChatSession('New Chat')
+        setActiveSessionIdState(newSession.id)
+        setActiveSession(newSession.id)
+        setQueries([])
+        setConsensusResponses({})
+        setSidebarRefreshTrigger(prev => prev + 1)
+      }
+    }
+
+    document.addEventListener('keydown', handleGlobalKeyDown)
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown)
   }, [])
 
   // Initialize active session on mount
@@ -117,14 +149,14 @@ export function ModernChatMain() {
         userMessage: q.userMessage,
         timestamp: q.timestamp,
       })).sort((a, b) => a.timestamp - b.timestamp)
-      
+
       setQueries(loadedQueries)
     }
   }, [mounted, activeSessionId])
 
   const enabledSlides = getEnabledSlides()
   const apiSlides = enabledSlides.filter(s => s.type === 'api')
-  
+
   // Check if any API keys are configured
   const hasAnyApiKey = mounted && (
     providerKeys.openrouter ||
@@ -137,7 +169,7 @@ export function ModernChatMain() {
     providerKeys.perplexity ||
     providerKeys.ollamaUrl
   )
-  
+
   const modelCount = mounted ? apiSlides.length : 0
 
   // Auto-scroll and show/hide scroll button
@@ -209,281 +241,281 @@ export function ModernChatMain() {
         console.error('Failed to save to localStorage:', error)
       }
 
-    // Process models in batches of 5 to avoid overwhelming the server
-    const BATCH_SIZE = 5
-    
-    // Helper function to process a single slide
-    const processSlide = async (slide: typeof apiSlides[0]) => {
-      const model = getModelById(slide.modelId || '')
-      
-      // Debug logging
-      console.log('[Debug] Slide:', slide.modelId, 'Model found:', !!model, 'fetchedModels keys:', Object.keys(fetchedModels))
-      
-      if (!model) {
-        console.warn('[Debug] Model not found for slide:', slide.modelId, 'Available models:', 
-          Object.values(fetchedModels).flat().map((m: any) => m.id).slice(0, 10))
+      // Process models in batches of 5 to avoid overwhelming the server
+      const BATCH_SIZE = 5
+
+      // Helper function to process a single slide
+      const processSlide = async (slide: typeof apiSlides[0]) => {
+        const model = getModelById(slide.modelId || '')
+
+        // Debug logging
+        console.log('[Debug] Slide:', slide.modelId, 'Model found:', !!model, 'fetchedModels keys:', Object.keys(fetchedModels))
+
+        if (!model) {
+          console.warn('[Debug] Model not found for slide:', slide.modelId, 'Available models:',
+            Object.values(fetchedModels).flat().map((m: any) => m.id).slice(0, 10))
+          addResponse(queryId, {
+            slideId: slide.id,
+            content: '',
+            isStreaming: false,
+            error: 'Model not found - try refreshing the page'
+          })
+          return
+        }
+
+        // Validate API key before making request
+        const getProviderKey = (provider: string): string | undefined => {
+          const keyMap: Record<string, string | undefined> = {
+            openrouter: slide.apiKey || providerKeys.openrouter,
+            openai: providerKeys.openai,
+            anthropic: providerKeys.anthropic,
+            gemini: providerKeys.gemini,
+            mistral: providerKeys.mistral,
+            groq: providerKeys.groq,
+            together: providerKeys.together,
+            perplexity: providerKeys.perplexity,
+            ollama: providerKeys.ollamaUrl || 'http://localhost:11434'
+          }
+          return keyMap[provider]
+        }
+
+        const apiKey = getProviderKey(model.provider)
+
+        // Check if API key is required and missing (ollama doesn't need key, just URL)
+        if (model.provider !== 'ollama' && !apiKey) {
+          const providerNames: Record<string, string> = {
+            openrouter: 'OpenRouter',
+            openai: 'OpenAI',
+            anthropic: 'Anthropic',
+            gemini: 'Gemini',
+            mistral: 'Mistral',
+            groq: 'Groq',
+            together: 'Together AI',
+            perplexity: 'Perplexity AI'
+          }
+          const providerName = providerNames[model.provider] || model.provider
+          addResponse(queryId, {
+            slideId: slide.id,
+            content: '',
+            isStreaming: false,
+            error: `${providerName} API key required. Click Settings to add your key.`
+          })
+          return
+        }
+
+        // Mark as streaming
         addResponse(queryId, {
           slideId: slide.id,
           content: '',
-          isStreaming: false,
-          error: 'Model not found - try refreshing the page'
-        })
-        return
-      }
-
-      // Validate API key before making request
-      const getProviderKey = (provider: string): string | undefined => {
-        const keyMap: Record<string, string | undefined> = {
-          openrouter: slide.apiKey || providerKeys.openrouter,
-          openai: providerKeys.openai,
-          anthropic: providerKeys.anthropic,
-          gemini: providerKeys.gemini,
-          mistral: providerKeys.mistral,
-          groq: providerKeys.groq,
-          together: providerKeys.together,
-          perplexity: providerKeys.perplexity,
-          ollama: providerKeys.ollamaUrl || 'http://localhost:11434'
-        }
-        return keyMap[provider]
-      }
-
-      const apiKey = getProviderKey(model.provider)
-      
-      // Check if API key is required and missing (ollama doesn't need key, just URL)
-      if (model.provider !== 'ollama' && !apiKey) {
-        const providerNames: Record<string, string> = {
-          openrouter: 'OpenRouter',
-          openai: 'OpenAI',
-          anthropic: 'Anthropic',
-          gemini: 'Gemini',
-          mistral: 'Mistral',
-          groq: 'Groq',
-          together: 'Together AI',
-          perplexity: 'Perplexity AI'
-        }
-        const providerName = providerNames[model.provider] || model.provider
-        addResponse(queryId, {
-          slideId: slide.id,
-          content: '',
-          isStreaming: false,
-          error: `${providerName} API key required. Click Settings to add your key.`
-        })
-        return
-      }
-
-      // Mark as streaming
-      addResponse(queryId, {
-        slideId: slide.id,
-        content: '',
-        isStreaming: true
-      })
-
-      try {
-        // Build conversation history from previous queries in this session
-        // Include up to 10 previous message pairs for context (20 messages total)
-        const previousQueries = activeSessionId 
-          ? getQueriesForSession(activeSessionId)
-            .filter(q => q.id !== queryId) // Exclude current query
-            .sort((a, b) => a.timestamp - b.timestamp) // Oldest first
-            .slice(-10) // Last 10 queries
-          : []
-        
-        // Build messages array with conversation history
-        const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = []
-        
-        for (const prevQuery of previousQueries) {
-          // Add user message
-          conversationMessages.push({ role: 'user', content: prevQuery.userMessage })
-          
-          // Find the best response for this model/slide
-          // Prefer the same slide, or use the first non-error response
-          const slideResponse = prevQuery.responses[slide.id]
-          if (slideResponse?.content && !slideResponse.error) {
-            conversationMessages.push({ role: 'assistant', content: slideResponse.content })
-          } else {
-            // Use first successful response from any model
-            const successfulResponse = Object.values(prevQuery.responses).find(
-              r => r.content && !r.error && !r.isStreaming
-            )
-            if (successfulResponse) {
-              conversationMessages.push({ role: 'assistant', content: successfulResponse.content })
-            }
-          }
-        }
-        
-        // Add the current message
-        conversationMessages.push({ role: 'user', content })
-
-        const requestBody: any = {
-          messages: conversationMessages,
-          model: model.model,
-          provider: model.provider,
-        }
-
-        // Add provider-specific keys
-        if (model.provider === 'ollama') {
-          requestBody.baseUrl = apiKey
-        } else {
-          requestBody.apiKey = apiKey
-        }
-
-        // Use shared AbortController for stop functionality (with 2 minute timeout fallback)
-        if (!abortControllerRef.current) {
-          abortControllerRef.current = new AbortController()
-        }
-        const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), 120000)
-
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-          signal: abortControllerRef.current.signal,
+          isStreaming: true
         })
 
-        clearTimeout(timeoutId)
+        try {
+          // Build conversation history from previous queries in this session
+          // Include up to 10 previous message pairs for context (20 messages total)
+          const previousQueries = activeSessionId
+            ? getQueriesForSession(activeSessionId)
+              .filter(q => q.id !== queryId) // Exclude current query
+              .sort((a, b) => a.timestamp - b.timestamp) // Oldest first
+              .slice(-10) // Last 10 queries
+            : []
 
-        if (!response.ok) {
-          let errorMessage = 'Failed to get response'
-          try {
-            const errorData = await response.json()
-            console.log('[Debug] Error response data:', errorData)
-            errorMessage = errorData.error || errorData.message || errorMessage
-          } catch (parseError) {
-            console.log('[Debug] Failed to parse error response:', parseError)
-            errorMessage = `Request failed with status ${response.status}`
-          }
-          
-          if (response.status === 401) {
-            const providerNames: Record<string, string> = {
-              openrouter: 'OpenRouter',
-              openai: 'OpenAI',
-              anthropic: 'Anthropic',
-              gemini: 'Gemini',
-              mistral: 'Mistral',
-              groq: 'Groq',
-              together: 'Together AI',
-              perplexity: 'Perplexity AI'
-            }
-            const providerName = providerNames[model.provider] || model.provider
-            errorMessage = `${providerName} API key required. Add your key in settings.`
-          }
-          
-          throw new Error(errorMessage)
-        }
+          // Build messages array with conversation history
+          const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = []
 
-        const reader = response.body?.getReader()
-        if (!reader) throw new Error('No response body')
+          for (const prevQuery of previousQueries) {
+            // Add user message
+            conversationMessages.push({ role: 'user', content: prevQuery.userMessage })
 
-        const decoder = new TextDecoder()
-        let fullContent = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n')
-
-          for (const line of lines) {
-            if (!line.trim() || line === 'data: [DONE]') continue
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6))
-                if (data.content) {
-                  fullContent += data.content
-                  updateResponse(queryId, slide.id, fullContent)
-                  
-                  // Update localStorage with streaming response
-                  try {
-                    updateResponseInLocal(queryId, slide.id, fullContent, true)
-                  } catch (error) {
-                    console.error('Failed to update localStorage:', error)
-                  }
-                }
-              } catch {
-                // Skip invalid JSON
+            // Find the best response for this model/slide
+            // Prefer the same slide, or use the first non-error response
+            const slideResponse = prevQuery.responses[slide.id]
+            if (slideResponse?.content && !slideResponse.error) {
+              conversationMessages.push({ role: 'assistant', content: slideResponse.content })
+            } else {
+              // Use first successful response from any model
+              const successfulResponse = Object.values(prevQuery.responses).find(
+                r => r.content && !r.error && !r.isStreaming
+              )
+              if (successfulResponse) {
+                conversationMessages.push({ role: 'assistant', content: successfulResponse.content })
               }
             }
           }
-        }
 
-        updateResponse(queryId, slide.id, fullContent || 'No response received.')
-        
-        // Save final response to localStorage
-        try {
-          updateResponseInLocal(queryId, slide.id, fullContent || 'No response received.', false)
-        } catch (error) {
-          console.error('Failed to save final response to localStorage:', error)
-        }
-      } catch (error: any) {
-        // Handle timeout/abort errors specially
-        let userMessage: string
-        let isDeprecationError = false
-        
-        if (error?.name === 'AbortError') {
-          userMessage = 'Request timed out after 2 minutes. The model may be overloaded.'
-        } else {
-          const apiError = parseApiError(error)
-          userMessage = getUserFriendlyMessage(apiError)
-          const isAuthMissing = /api key required|api key missing|provide an api key/i.test(userMessage)
-          if (isAuthMissing) {
-            // User action issue (missing key) — warn without disabling or noisy logs
-            console.warn(`[Auth] ${userMessage}`)
+          // Add the current message
+          conversationMessages.push({ role: 'user', content })
+
+          const requestBody: any = {
+            messages: conversationMessages,
+            model: model.model,
+            provider: model.provider,
+          }
+
+          // Add provider-specific keys
+          if (model.provider === 'ollama') {
+            requestBody.baseUrl = apiKey
           } else {
-            logError(`Chat error for slide ${slide.name}`, apiError)
+            requestBody.apiKey = apiKey
           }
-          
-          // Check if this is a deprecation error - disable immediately
-          const errorLower = userMessage.toLowerCase()
-          isDeprecationError = errorLower.includes('deprecated') || 
-                               errorLower.includes('decommission') ||
-                               errorLower.includes('no longer available') ||
-                               errorLower.includes('model not found') ||
-                               errorLower.includes('invalid model')
-          
-          // If this is an auth/key error, don't auto-disable the model
-          if (isAuthMissing) {
-            isDeprecationError = false
+
+          // Use shared AbortController for stop functionality (with 2 minute timeout fallback)
+          if (!abortControllerRef.current) {
+            abortControllerRef.current = new AbortController()
           }
-        }
-        
-        // Record the error and auto-disable the model unless it's an auth/key issue
-        if (!/api key required|api key missing|provide an api key/i.test(userMessage)) {
-          if (slide.modelId) {
-            recordModelError(slide.modelId, userMessage)
-            console.log(`[Auto-disable] Model ${slide.modelId} disabled due to error: ${userMessage}`)
+          const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), 120000)
+
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: abortControllerRef.current.signal,
+          })
+
+          clearTimeout(timeoutId)
+
+          if (!response.ok) {
+            let errorMessage = 'Failed to get response'
+            try {
+              const errorData = await response.json()
+              console.log('[Debug] Error response data:', errorData)
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              console.log('[Debug] Failed to parse error response:', parseError)
+              errorMessage = `Request failed with status ${response.status}`
+            }
+
+            if (response.status === 401) {
+              const providerNames: Record<string, string> = {
+                openrouter: 'OpenRouter',
+                openai: 'OpenAI',
+                anthropic: 'Anthropic',
+                gemini: 'Gemini',
+                mistral: 'Mistral',
+                groq: 'Groq',
+                together: 'Together AI',
+                perplexity: 'Perplexity AI'
+              }
+              const providerName = providerNames[model.provider] || model.provider
+              errorMessage = `${providerName} API key required. Add your key in settings.`
+            }
+
+            throw new Error(errorMessage)
           }
-        }
-        
-        addResponse(queryId, {
-          slideId: slide.id,
-          content: '',
-          isStreaming: false,
-          error: userMessage
-        })
-        
-        // Save error to localStorage
-        try {
-          updateResponseInLocal(queryId, slide.id, '', false, userMessage)
-        } catch (lsError) {
-          console.error('Failed to save error to localStorage:', lsError)
+
+          const reader = response.body?.getReader()
+          if (!reader) throw new Error('No response body')
+
+          const decoder = new TextDecoder()
+          let fullContent = ''
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value, { stream: true })
+            const lines = chunk.split('\n')
+
+            for (const line of lines) {
+              if (!line.trim() || line === 'data: [DONE]') continue
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6))
+                  if (data.content) {
+                    fullContent += data.content
+                    updateResponse(queryId, slide.id, fullContent)
+
+                    // Update localStorage with streaming response
+                    try {
+                      updateResponseInLocal(queryId, slide.id, fullContent, true)
+                    } catch (error) {
+                      console.error('Failed to update localStorage:', error)
+                    }
+                  }
+                } catch {
+                  // Skip invalid JSON
+                }
+              }
+            }
+          }
+
+          updateResponse(queryId, slide.id, fullContent || 'No response received.')
+
+          // Save final response to localStorage
+          try {
+            updateResponseInLocal(queryId, slide.id, fullContent || 'No response received.', false)
+          } catch (error) {
+            console.error('Failed to save final response to localStorage:', error)
+          }
+        } catch (error: any) {
+          // Handle timeout/abort errors specially
+          let userMessage: string
+          let isDeprecationError = false
+
+          if (error?.name === 'AbortError') {
+            userMessage = 'Request timed out after 2 minutes. The model may be overloaded.'
+          } else {
+            const apiError = parseApiError(error)
+            userMessage = getUserFriendlyMessage(apiError)
+            const isAuthMissing = /api key required|api key missing|provide an api key/i.test(userMessage)
+            if (isAuthMissing) {
+              // User action issue (missing key) — warn without disabling or noisy logs
+              console.warn(`[Auth] ${userMessage}`)
+            } else {
+              logError(`Chat error for slide ${slide.name}`, apiError)
+            }
+
+            // Check if this is a deprecation error - disable immediately
+            const errorLower = userMessage.toLowerCase()
+            isDeprecationError = errorLower.includes('deprecated') ||
+              errorLower.includes('decommission') ||
+              errorLower.includes('no longer available') ||
+              errorLower.includes('model not found') ||
+              errorLower.includes('invalid model')
+
+            // If this is an auth/key error, don't auto-disable the model
+            if (isAuthMissing) {
+              isDeprecationError = false
+            }
+          }
+
+          // Record the error and auto-disable the model unless it's an auth/key issue
+          if (!/api key required|api key missing|provide an api key/i.test(userMessage)) {
+            if (slide.modelId) {
+              recordModelError(slide.modelId, userMessage)
+              console.log(`[Auto-disable] Model ${slide.modelId} disabled due to error: ${userMessage}`)
+            }
+          }
+
+          addResponse(queryId, {
+            slideId: slide.id,
+            content: '',
+            isStreaming: false,
+            error: userMessage
+          })
+
+          // Save error to localStorage
+          try {
+            updateResponseInLocal(queryId, slide.id, '', false, userMessage)
+          } catch (lsError) {
+            console.error('Failed to save error to localStorage:', lsError)
+          }
         }
       }
-    }
 
-    // Process slides in batches of BATCH_SIZE
-    console.log(`[Batch] Processing ${apiSlides.length} models in batches of ${BATCH_SIZE}`)
-    
-    for (let i = 0; i < apiSlides.length; i += BATCH_SIZE) {
-      const batch = apiSlides.slice(i, i + BATCH_SIZE)
-      console.log(`[Batch] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(apiSlides.length / BATCH_SIZE)}: ${batch.map(s => s.name).join(', ')}`)
-      
-      // Process this batch in parallel
-      await Promise.all(batch.map(processSlide))
-    }
-    
-    // Sort slides so errored ones go to the end
-    sortSlidesByErrors()
+      // Process slides in batches of BATCH_SIZE
+      console.log(`[Batch] Processing ${apiSlides.length} models in batches of ${BATCH_SIZE}`)
+
+      for (let i = 0; i < apiSlides.length; i += BATCH_SIZE) {
+        const batch = apiSlides.slice(i, i + BATCH_SIZE)
+        console.log(`[Batch] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(apiSlides.length / BATCH_SIZE)}: ${batch.map(s => s.name).join(', ')}`)
+
+        // Process this batch in parallel
+        await Promise.all(batch.map(processSlide))
+      }
+
+      // Sort slides so errored ones go to the end
+      sortSlidesByErrors()
     } finally {
       // ALWAYS set querying to false, even if errors occurred
       setQuerying(false)
@@ -493,7 +525,7 @@ export function ModernChatMain() {
   const handleRequestConsensus = async (queryId: string, userMessage: string) => {
     const queryResponses = responses[queryId] || []
     const validResponses = queryResponses.filter(r => r.content && !r.error)
-    
+
     if (validResponses.length < 2) return
 
     setConsensusLoading(queryId)
@@ -521,18 +553,18 @@ export function ModernChatMain() {
       setConsensusLoading(null)
     }
   }
-  
+
   // Check if any enabled model has web search or research capabilities
   const hasWebSearchModel = apiSlides.some(slide => {
     const model = getModelById(slide.modelId || '')
     return model?.supportsWebSearch
   })
-  
+
   const hasResearchModel = apiSlides.some(slide => {
     const model = getModelById(slide.modelId || '')
     return model?.supportsResearch
   })
-  
+
   const hasReasoningModel = apiSlides.some(slide => {
     const model = getModelById(slide.modelId || '')
     return model?.supportsReasoning
@@ -541,7 +573,7 @@ export function ModernChatMain() {
   const handleSessionChange = (sessionId: string) => {
     setActiveSessionIdState(sessionId)
     setActiveSession(sessionId)
-    
+
     // Load queries for this session
     const sessionQueries = getQueriesForSession(sessionId)
     const loadedQueries: QueryGroup[] = sessionQueries.map(q => ({
@@ -549,7 +581,7 @@ export function ModernChatMain() {
       userMessage: q.userMessage,
       timestamp: q.timestamp,
     })).sort((a, b) => a.timestamp - b.timestamp)
-    
+
     setQueries(loadedQueries)
     setConsensusResponses({})
   }
@@ -613,7 +645,7 @@ export function ModernChatMain() {
               <div className="hidden sm:block">
                 <h1 className="font-bold text-base sm:text-lg tracking-tight">MultifariousAI</h1>
                 <p className="text-xs text-muted-foreground">
-                  {mounted 
+                  {mounted
                     ? `${modelCount} model${modelCount !== 1 ? 's' : ''} active`
                     : 'Compare AI responses side-by-side'
                   }
@@ -633,6 +665,7 @@ export function ModernChatMain() {
               <span className="hidden sm:inline">Add Models</span>
             </Button>
             <ApiKeySettings />
+            <KeyboardShortcutDialog />
             <ThemeToggle />
           </div>
         </header>
@@ -650,7 +683,7 @@ export function ModernChatMain() {
                 Add your API key to unlock 50+ AI models. OpenRouter offers free credits to get started!
               </p>
             </div>
-            <Button 
+            <Button
               onClick={() => {
                 const settingsBtn = document.querySelector('[data-api-settings]') as HTMLButtonElement
                 settingsBtn?.click()
@@ -664,17 +697,25 @@ export function ModernChatMain() {
         )}
 
         {/* Messages Area */}
-        <div 
+        <div
           ref={scrollRef}
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto"
         >
           <div className="max-w-7xl mx-auto p-6 space-y-8">
             {queries.length === 0 ? (
-              <WelcomeScreen 
-                modelCount={modelCount}
-                onAddModels={() => setShowModelSelector(true)}
-              />
+              showOnboarding ? (
+                <OnboardingWalkthrough
+                  onComplete={() => setShowOnboarding(false)}
+                  onOpenSettings={() => setShowModelSelector(true)}
+                  modelCount={modelCount}
+                />
+              ) : (
+                <WelcomeScreen
+                  modelCount={modelCount}
+                  onAddModels={() => setShowModelSelector(true)}
+                />
+              )
             ) : (
               queries.map((query, index) => {
                 const queryResponses = responses[query.id] || []
@@ -682,7 +723,7 @@ export function ModernChatMain() {
                 queryResponses.forEach(r => {
                   responseMap[r.slideId] = { content: r.content, isStreaming: r.isStreaming, error: r.error }
                 })
-                
+
                 const validResponses = queryResponses.filter(r => r.content && !r.error)
                 const canGetConsensus = validResponses.length >= 2 && !consensusResponses[query.id]
 
@@ -785,22 +826,22 @@ export function ModernChatMain() {
         {/* Input Area */}
         <div className="border-t bg-background/80 backdrop-blur-sm py-2 sm:py-4 safe-area-inset-bottom\">
           <ModernChatInput
-              onSend={handleSendMessage}
-              onStop={handleStopResponse}
-              disabled={!mounted || isQuerying}
-              isLoading={isQuerying}
-              modelCount={modelCount}
-              placeholder={
-                modelCount === 0 
-                  ? "Add AI models to start comparing..."
-                  : `Ask ${modelCount} AI${modelCount > 1 ? 's' : ''} anything...`
-              }
-              onOpenSettings={() => setShowModelSelector(true)}
-              showWebSearchToggle={true}
-              showResearchToggle={true}
-              showReasoningToggle={true}
-            />
-          </div>
+            onSend={handleSendMessage}
+            onStop={handleStopResponse}
+            disabled={!mounted || isQuerying}
+            isLoading={isQuerying}
+            modelCount={modelCount}
+            placeholder={
+              modelCount === 0
+                ? "Add AI models to start comparing..."
+                : `Ask ${modelCount} AI${modelCount > 1 ? 's' : ''} anything...`
+            }
+            onOpenSettings={() => setShowModelSelector(true)}
+            showWebSearchToggle={true}
+            showResearchToggle={true}
+            showReasoningToggle={true}
+          />
+        </div>
 
         {/* Model Selector Dialog */}
         <ModelSelectorDialog
@@ -847,12 +888,12 @@ function WelcomeScreen({ modelCount, onAddModels }: WelcomeScreenProps) {
     >
       <motion.div
         className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary via-purple-500 to-pink-500 flex items-center justify-center mb-4 sm:mb-6 shadow-2xl shadow-primary/25"
-        animate={{ 
+        animate={{
           rotate: [0, 5, -5, 0],
           scale: [1, 1.05, 1]
         }}
-        transition={{ 
-          duration: 4, 
+        transition={{
+          duration: 4,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -862,8 +903,8 @@ function WelcomeScreen({ modelCount, onAddModels }: WelcomeScreenProps) {
 
       <h2 className="text-xl sm:text-3xl font-bold mb-2 sm:mb-3">🔑 Add API Keys to Get Started</h2>
       <p className="text-muted-foreground text-sm sm:text-base max-w-md mb-6 sm:mb-8">
-        {modelCount === 0 
-          ? 'Add your API keys to unlock AI models.' 
+        {modelCount === 0
+          ? 'Add your API keys to unlock AI models.'
           : `${modelCount} model${modelCount !== 1 ? 's' : ''} ready. Add more API keys for more models.`
         }
       </p>

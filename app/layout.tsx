@@ -6,6 +6,7 @@ import { AuthProvider } from '@/components/auth/auth-provider'
 import { StoreHydration } from '@/components/store-hydration'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
+import { SkipLink } from '@/components/ui/skip-link'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <SkipLink />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

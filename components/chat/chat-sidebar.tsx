@@ -17,13 +17,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-import { 
-  getAllChatSessions, 
-  createChatSession, 
-  deleteChatSession, 
+import {
+  getAllChatSessions,
+  createChatSession,
+  deleteChatSession,
   updateChatSession,
   getActiveSessionId,
-  setActiveSession 
+  setActiveSession
 } from '@/lib/chat-sessions'
 import type { ChatSession } from '@/lib/chat-sessions'
 
@@ -95,11 +95,11 @@ export function ChatSidebar({
 
   const handleConfirmDelete = () => {
     if (!sessionToDelete) return
-    
+
     deleteChatSession(sessionToDelete)
     const updated = sessions.filter(s => s.id !== sessionToDelete)
     setSessions(updated)
-    
+
     // If we deleted the active session, switch to another or set to null
     if (activeSessionId === sessionToDelete) {
       if (updated.length > 0) {
@@ -110,7 +110,7 @@ export function ChatSidebar({
         onActiveSessionCleared?.()
       }
     }
-    
+
     setDeleteConfirmOpen(false)
     setSessionToDelete(null)
   }
@@ -151,7 +151,7 @@ export function ChatSidebar({
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
-    
+
     if (date.toDateString() === today.toDateString()) {
       return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     } else if (date.toDateString() === yesterday.toDateString()) {
@@ -165,12 +165,14 @@ export function ChatSidebar({
     <>
       {/* Mobile Overlay Backdrop */}
       {open && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => onOpenChange(false)}
         />
       )}
       <aside
+        role="navigation"
+        aria-label="Chat history"
         className={cn(
           'flex flex-col h-full border-r bg-background transition-all duration-300 z-50',
           // Mobile: fixed overlay drawer
@@ -178,146 +180,148 @@ export function ChatSidebar({
           open ? 'w-72 translate-x-0' : 'w-72 -translate-x-full lg:w-0 lg:translate-x-0 lg:hidden'
         )}
       >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b p-3 sm:p-4">
-        <h2 className="font-semibold text-sm sm:text-base">Chats</h2>
-        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-8">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b p-3 sm:p-4">
+          <h2 className="font-semibold text-sm sm:text-base">Chats</h2>
+          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="h-8 w-8">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-      {/* New Chat Button */}
-      <div className="p-2 sm:p-3 border-b">
-        <Button
-          onClick={handleNewChat}
-          className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          New Chat
-        </Button>
-      </div>
+        {/* New Chat Button */}
+        <div className="p-2 sm:p-3 border-b">
+          <Button
+            onClick={handleNewChat}
+            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            New Chat
+          </Button>
+        </div>
 
-      {/* Sessions List */}
-      <ScrollArea className="flex-1">
-        {!mounted ? (
-          <div className="p-4 text-xs text-muted-foreground text-center mt-4">
-            Loading...
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="p-4 text-xs text-muted-foreground text-center mt-4">
-            No chats yet. Start a new one!
-          </div>
-        ) : (
-          <div className="space-y-1 p-2">
-            {sessions.map((session, index) => (
-              <motion.div
-                key={session.id}
-                onClick={() => {
-                  handleSelectSession(session.id)
-                  // Close sidebar on mobile after selection
-                  if (window.innerWidth < 1024) {
-                    onOpenChange(false)
-                  }
-                }}
-                className={cn(
-                  'w-full group relative rounded-lg p-2.5 sm:p-3 text-left transition-all duration-200 text-sm cursor-pointer',
-                  'hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
-                  activeSessionId === session.id
-                    ? 'bg-primary/10 border border-primary/30'
-                    : 'border border-transparent'
-                )}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <div className="flex items-start gap-2">
-                  <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
-                  <div className="flex-1 min-w-0">
-                    {editingSessionId === session.id ? (
-                      <Input
-                        ref={editInputRef}
-                        value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
-                        onKeyDown={(e) => handleRenameKeyDown(e, session.id)}
-                        onBlur={handleCancelRename}
-                        className="h-6 text-sm font-medium px-1 py-0"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <p className="text-sm font-medium truncate">
-                        {session.title}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(session.updatedAt)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="absolute right-2 sm:right-3 top-2 sm:top-3 flex gap-1">
-                  {editingSessionId === session.id ? (
-                    <button
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        handleSaveRename(session.id)
-                      }}
-                      className={cn(
-                        'p-1.5 rounded-md',
-                        'hover:bg-primary/10 text-primary transition-all hover:scale-110 active:scale-95'
-                      )}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={(e) => handleStartRename(session, e)}
-                      className={cn(
-                        'p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
-                        'hover:bg-primary/10 text-primary transition-all hover:scale-110 active:scale-95'
-                      )}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => handleDeleteClick(session.id, e)}
+        {/* Sessions List */}
+        <ScrollArea className="flex-1">
+          {!mounted ? (
+            <div className="p-4 text-xs text-muted-foreground text-center mt-4">
+              Loading...
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="p-4 text-xs text-muted-foreground text-center mt-4">
+              No chats yet. Start a new one!
+            </div>
+          ) : (
+            <ul role="list" aria-label="Chat sessions" className="space-y-1 p-2">
+              {sessions.map((session, index) => (
+                <li key={session.id}>
+                  <motion.div
+                    onClick={() => {
+                      handleSelectSession(session.id)
+                      // Close sidebar on mobile after selection
+                      if (window.innerWidth < 1024) {
+                        onOpenChange(false)
+                      }
+                    }}
                     className={cn(
-                      'p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
-                      'hover:bg-destructive/10 text-destructive transition-all hover:scale-110 active:scale-95'
+                      'w-full group relative rounded-lg p-2.5 sm:p-3 text-left transition-all duration-200 text-sm cursor-pointer',
+                      'hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
+                      activeSessionId === session.id
+                        ? 'bg-primary/10 border border-primary/30'
+                        : 'border border-transparent'
                     )}
+                    aria-current={activeSessionId === session.id ? 'true' : undefined}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ delay: index * 0.05 }}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+                    <div className="flex items-start gap-2">
+                      <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
+                      <div className="flex-1 min-w-0">
+                        {editingSessionId === session.id ? (
+                          <Input
+                            ref={editInputRef}
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onKeyDown={(e) => handleRenameKeyDown(e, session.id)}
+                            onBlur={handleCancelRename}
+                            className="h-6 text-sm font-medium px-1 py-0"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <p className="text-sm font-medium truncate">
+                            {session.title}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(session.updatedAt)}
+                        </p>
+                      </div>
+                    </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Chat</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this chat? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSessionToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </aside>
+                    {/* Action Buttons */}
+                    <div className="absolute right-2 sm:right-3 top-2 sm:top-3 flex gap-1">
+                      {editingSessionId === session.id ? (
+                        <button
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            handleSaveRename(session.id)
+                          }}
+                          className={cn(
+                            'p-1.5 rounded-md',
+                            'hover:bg-primary/10 text-primary transition-all hover:scale-110 active:scale-95'
+                          )}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => handleStartRename(session, e)}
+                          className={cn(
+                            'p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
+                            'hover:bg-primary/10 text-primary transition-all hover:scale-110 active:scale-95'
+                          )}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => handleDeleteClick(session.id, e)}
+                        className={cn(
+                          'p-1.5 rounded-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
+                          'hover:bg-destructive/10 text-destructive transition-all hover:scale-110 active:scale-95'
+                        )}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Chat</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this chat? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setSessionToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </aside>
     </>
   )
 }
