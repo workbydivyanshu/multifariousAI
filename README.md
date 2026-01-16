@@ -22,6 +22,15 @@
 - **Privacy First** - No data leaves your device
 - **Cost-Free** - Use free local models like Llama, Mistral, Qwen
 - **Auto-Discovery** - Automatically import all your Ollama models
+- **Provider-agnostic Architecture** - Use local models with the same interface as cloud models
+
+### ♿ **Accessibility & UX**
+- **WCAG 2.1 Compliant** - Built with accessibility best practices
+- **Keyboard Navigation** - Fully navigable via keyboard
+- **Skip Link** - Bypass navigation to reach main content quickly
+- **ARIA Standards** - Proper roles and labels for screen readers
+- **Reduced Motion** - Respects system-level motion preferences
+- **High Contrast Support** - Optimized for high contrast modes
 
 ### 🔥 **Core Features**
 - **User Authentication** - Sign up/login with GitHub or Google OAuth
@@ -32,12 +41,15 @@
 - **File Upload** - Support for images, PDFs, and DOCX files
 - **Custom Models** - Add your own OpenRouter or Ollama models
 - **Responsive Design** - Works perfectly on desktop and mobile
+- **Animated Onboarding** - 5-step interactive walkthrough for new users
+- **Loading Skeletons** - Smooth perceived performance with animated loading states
 
 ### 🎨 **Modern UI**
 - Clean, intuitive interface built with Tailwind CSS
 - Shadcn/ui components for consistent design
 - Real-time streaming responses
-- Keyboard shortcuts (Enter to send, Shift+Enter for new line)
+- **Keyboard Shortcuts Dialog** - Press `Ctrl+/` to discover all shortcuts
+- **Global Shortcuts** - `Ctrl+K` (Model Selector), `Ctrl+N` (New Chat)
 
 ---
 
@@ -332,6 +344,8 @@ docker-compose up --build
 
 - [x] **Database Integration** - PostgreSQL with Drizzle ORM
 - [x] **User Authentication** - Better Auth with GitHub/Google OAuth
+- [x] **Accessibility Overhaul** - WCAG 2.1 compliance and keyboard navigation
+- [x] **Interactive Onboarding** - Animated guide for new users
 - [ ] **Conversation Sharing** - Share chats via public links
 - [ ] **Chat Export** - Export to Markdown, PDF
 - [ ] **Desktop Application** - Electron/Tauri for offline use
