@@ -12,7 +12,7 @@
 ## ✨ Features
 
 ### 🌐 **Cloud AI Models**
-- **100+ Free AI Models** - Use OpenRouter's free tier without API keys
+- **100+ Free AI Models** - Use OpenRouter's free tier
 - **Premium Models** - Access Claude 3.5, GPT-4o, and more with your own keys
 - **Multiple Providers** - OpenRouter, Google Gemini, Mistral, and more
 - **Real-time Streaming** - Watch responses generate character by character
@@ -206,9 +206,9 @@ npm run start
 
 ## 🎯 Getting API Keys (Optional)
 
-### Free Models - No Key Required!
+### Free Models - Key Required!
 
-The following models work **without any API key**:
+The following models work **with API key**:
 - ✅ Llama 3.3 70B (Free)
 - ✅ Qwen 2.5 72B (Free)
 - ✅ Gemma 3 27B (Free)
@@ -267,30 +267,6 @@ multifariousAI/
 └── types/                       # TypeScript definitions
     └── index.ts                # Shared types
 ```
-
----
-
-## 🎨 Features from Inspiration
-
-### From [lokeswaran-aj/open-fiesta](https://github.com/lokeswaran-aj/open-fiesta)
-- ✅ Modern streaming architecture with Vercel AI SDK
-- ✅ Multi-provider support
-- ✅ Rate limiting
-- ✅ Database persistence (Planned)
-
-### From [NiladriHazra/Open-Fiesta](https://github.com/NiladriHazra/Open-Fiesta)
-- ✅ Ollama local model support
-- ✅ Free pool models from OpenRouter
-- ✅ File upload (PDF, DOCX, images)
-- ✅ Modular API routes
-- ✅ Docker support
-
-### Unique to MultifariousAI
-- ✅ Unified free + paid + local models
-- ✅ Easy model import from Ollama
-- ✅ Custom model addition
-- ✅ Desktop app support (Coming soon)
-- ✅ Provider-agnostic architecture
 
 ---
 
